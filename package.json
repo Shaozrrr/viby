@@ -1,0 +1,14 @@
+{
+  "name": "viby",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check script.js && node --check works.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart viby"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>更多作品 - Viby</title>
+    <link rel="icon" href="./logo-source.png" type="image/png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="works-page">
+    <div class="grain" aria-hidden="true"></div>
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="Viby home">
+        <img src="./logo-source.png" alt="Viby" />
+        <span>Viby</span>
+      </a>
+      <nav class="nav" aria-label="主导航">
+        <a href="./index.html#gallery">作品</a>
+        <a href="./index.html#how">发布</a>
+      </nav>
+      <a class="ghost-button" href="./index.html">返回首页</a>
+    </header>
+
+    <main class="works-main">
+      <section class="section">
+        <div class="section-heading">
+          <div>
+            <span class="section-kicker">More builds</span>
+            <h2>更多 Viby 作品</h2>
+          </div>
+        </div>
+        <div class="work-grid" id="allWorksGrid" aria-live="polite"></div>
+        <p class="pagination-guide" id="paginationGuide">向下看完这一页后，点击下方按钮切换到第二页。</p>
+        <div class="pagination" aria-label="分页">
+          <button class="active" data-page="1">第一页</button>
+          <button data-page="2">第二页</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="./works.js"></script>
+  </body>
+</html>
