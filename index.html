@@ -9,7 +9,7 @@
     />
     <title>微步 Viby - Vibe Coding 作品社区</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260513a" />
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -25,8 +25,14 @@
         <a href="#how">发布</a>
       </nav>
       <div class="header-actions">
-        <button class="ghost-button login-button" data-open-login>登录</button>
-        <button class="ghost-button" data-open-submit>提交作品</button>
+        <button class="ghost-button login-button" type="button" data-open-login>登录</button>
+        <button class="profile-entry" type="button" data-open-profile hidden aria-label="我的主页">
+          <span class="profile-entry-avatar-wrap">
+            <img class="profile-entry-avatar" src="" alt="" width="32" height="32" />
+          </span>
+          <span class="profile-entry-label"></span>
+        </button>
+        <button class="ghost-button" type="button" data-open-submit>提交作品</button>
       </div>
     </header>
 
@@ -276,6 +282,64 @@
       </div>
     </aside>
 
+    <aside class="profile-overlay" aria-hidden="true" aria-label="创作者主页">
+      <div class="profile-shell">
+        <button class="close-button profile-close" type="button" data-close-profile aria-label="关闭">×</button>
+        <div class="profile-shell-inner">
+          <header class="profile-hero">
+            <label class="profile-avatar-orbit">
+              <input id="profileAvatarInput" type="file" accept="image/*" class="profile-avatar-input" />
+              <img id="profileAvatarPreview" class="profile-avatar-img" src="" alt="" width="120" height="120" />
+              <span class="profile-avatar-glint" aria-hidden="true"></span>
+            </label>
+            <div class="profile-identity">
+              <p class="profile-eyeline">Studio</p>
+              <input
+                id="profileDisplayName"
+                class="profile-name-field"
+                type="text"
+                maxlength="32"
+                autocomplete="nickname"
+                aria-label="展示名称"
+              />
+              <p id="profileEmailLine" class="profile-subline"></p>
+              <div class="profile-aux">
+                <button type="button" class="profile-text-btn" data-profile-reset-avatar>恢复默认头像</button>
+              </div>
+            </div>
+          </header>
+
+          <section class="profile-metrics" aria-label="作品数据">
+            <div class="profile-metric">
+              <span id="profileStatWorks" class="profile-metric-value">0</span>
+              <span class="profile-metric-label">作品</span>
+            </div>
+            <div class="profile-metric">
+              <span id="profileStatViews" class="profile-metric-value">0</span>
+              <span class="profile-metric-label">访问</span>
+            </div>
+            <div class="profile-metric">
+              <span id="profileStatLikes" class="profile-metric-value">0</span>
+              <span class="profile-metric-label">获赞</span>
+            </div>
+          </section>
+
+          <section class="profile-gallery-region">
+            <h3 class="profile-gallery-title">
+              <span>Works</span>
+              <span class="profile-gallery-rule" aria-hidden="true"></span>
+            </h3>
+            <div id="profileWorksGrid" class="profile-works-grid"></div>
+          </section>
+
+          <footer class="profile-footer">
+            <button type="button" class="profile-save-btn" data-profile-save>保存资料</button>
+            <button type="button" class="profile-logout-btn" data-profile-logout>退出登录</button>
+          </footer>
+        </div>
+      </div>
+    </aside>
+
     <aside class="detail-overlay" aria-hidden="true" aria-label="作品详情">
       <article class="detail-card">
         <button class="close-button" data-close-detail aria-label="关闭">×</button>
@@ -297,6 +361,6 @@
 
     <div class="toast" role="status" aria-live="polite"></div>
 
-    <script src="./script.js"></script>
+    <script src="./script.js?v=20260513a"></script>
   </body>
 </html>

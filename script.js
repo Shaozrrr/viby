@@ -35,9 +35,24 @@ const detailLikes = document.querySelector("#detailLikes");
 const detailViews = document.querySelector("#detailViews");
 const detailDate = document.querySelector("#detailDate");
 const detailActions = document.querySelector("#detailActions");
+const profileOverlay = document.querySelector(".profile-overlay");
+const profileEntryButton = document.querySelector("[data-open-profile]");
+const closeProfileButton = document.querySelector("[data-close-profile]");
+const profileAvatarInput = document.querySelector("#profileAvatarInput");
+const profileAvatarPreview = document.querySelector("#profileAvatarPreview");
+const profileDisplayNameInput = document.querySelector("#profileDisplayName");
+const profileEmailLine = document.querySelector("#profileEmailLine");
+const profileStatWorksEl = document.querySelector("#profileStatWorks");
+const profileStatViewsEl = document.querySelector("#profileStatViews");
+const profileStatLikesEl = document.querySelector("#profileStatLikes");
+const profileWorksGrid = document.querySelector("#profileWorksGrid");
+const profileSaveButton = document.querySelector("[data-profile-save]");
+const profileLogoutButton = document.querySelector("[data-profile-logout]");
+const profileResetAvatarButton = document.querySelector("[data-profile-reset-avatar]");
 
 const storageKey = "viby-works";
 const authKey = "viby-user";
+const profilePrefsKey = "viby-profile-prefs";
 const accountsKey = "viby-accounts";
 const interactionsKey = "viby-interactions";
 const emailCodeKey = "viby-email-code";
@@ -183,6 +198,7 @@ let croppedCovers = [];
 let sourceCovers = [];
 let editingCoverIndex = null;
 let cropBoxState = null;
+let pendingProfileAvatar = null;
 
 const escapeHTML = (value) =>
   String(value)
@@ -194,7 +210,8 @@ const escapeHTML = (value) =>
 
 const getStoredWorks = () => {
   try {
-    return JSON.parse(localStorage.getItem(storageKey)) || [];
+    const raw = JSON.parse(localStorage.getItem(storageKey) || "null");
+    return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
@@ -202,7 +219,8 @@ const getStoredWorks = () => {
 
 const getAccounts = () => {
   try {
-    return JSON.parse(localStorage.getItem(accountsKey)) || [];
+    const raw = JSON.parse(localStorage.getItem(accountsKey) || "null");
+    return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
@@ -214,7 +232,8 @@ const saveAccounts = (accounts) => {
 
 const getInteractions = () => {
   try {
-    return JSON.parse(localStorage.getItem(interactionsKey)) || {};
+    const raw = JSON.parse(localStorage.getItem(interactionsKey) || "null");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   } catch {
     return {};
   }
@@ -222,6 +241,70 @@ const getInteractions = () => {
 
 const saveInteractions = (interactions) => {
   localStorage.setItem(interactionsKey, JSON.stringify(interactions));
+};
+
+const getProfilePrefsMap = () => {
+  try {
+    return JSON.parse(localStorage.getItem(profilePrefsKey)) || {};
+  } catch {
+    return {};
+  }
+};
+
+const getProfilePrefs = (userId) => (userId ? getProfilePrefsMap()[userId] || {} : {});
+
+const setProfilePrefs = (userId, patch) => {
+  if (!userId) return;
+  const map = getProfilePrefsMap();
+  map[userId] = { ...getProfilePrefs(userId), ...patch };
+  localStorage.setItem(profilePrefsKey, JSON.stringify(map));
+};
+
+const fileToAvatarDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const image = new Image();
+      image.addEventListener("load", () => {
+        const canvas = document.createElement("canvas");
+        const size = 160;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.88));
+      });
+      image.addEventListener("error", reject);
+      image.src = reader.result;
+    });
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+
+const getProfilePresentation = (user) => {
+  if (!user) return { displayName: "", avatarUrl: "" };
+  const prefs = getProfilePrefs(user.id);
+  const displayName = String(
+    prefs.displayName || user.name || (user.email || "").split("@")[0] || "创作者",
+  ).trim();
+  const avatarUrl = prefs.avatarDataUrl || user.avatar || "";
+  return { displayName, avatarUrl };
+};
+
+const getUserWorks = (userId) =>
+  works.filter((work) => work.isUserCreated && work.authorId === userId);
+
+const migrateWorksAuthor = () => {
+  const user = getUser();
+  if (!user) return;
+  let changed = false;
+  works.forEach((work) => {
+    if (work.isUserCreated && !work.authorId) {
+      work.authorId = user.id;
+      changed = true;
+    }
+  });
+  if (changed) saveUserWorks();
 };
 
 const getUser = () => {
@@ -234,7 +317,89 @@ const getUser = () => {
 
 const updateLoginState = () => {
   const user = getUser();
-  openLoginButton.textContent = user ? user.name || user.email.split("@")[0] : "登录";
+  if (user) {
+    migrateWorksAuthor();
+    openLoginButton.hidden = true;
+    profileEntryButton.hidden = false;
+    const { displayName, avatarUrl } = getProfilePresentation(user);
+    const avatarEl = profileEntryButton.querySelector(".profile-entry-avatar");
+    const labelEl = profileEntryButton.querySelector(".profile-entry-label");
+    if (avatarEl) {
+      avatarEl.src = avatarUrl || "./logo-source.png";
+      avatarEl.alt = displayName;
+    }
+    if (labelEl) labelEl.textContent = displayName;
+  } else {
+    openLoginButton.hidden = false;
+    profileEntryButton.hidden = true;
+  }
+};
+
+const closeProfile = () => {
+  profileOverlay.classList.remove("is-open");
+  profileOverlay.setAttribute("aria-hidden", "true");
+  pendingProfileAvatar = null;
+};
+
+const renderProfilePanel = () => {
+  const user = getUser();
+  if (!user || !profileWorksGrid) return;
+
+  const { displayName, avatarUrl } = getProfilePresentation(user);
+  profileDisplayNameInput.value = displayName;
+  profileEmailLine.textContent = user.email || "";
+  profileAvatarPreview.src = pendingProfileAvatar || avatarUrl || "./logo-source.png";
+  profileAvatarPreview.alt = displayName;
+
+  const list = getUserWorks(user.id).sort((a, b) => b.createdAt - a.createdAt);
+  const viewsSum = list.reduce((s, w) => s + (w.views || 0), 0);
+  const likesSum = list.reduce((s, w) => s + (w.likes || 0), 0);
+  profileStatWorksEl.textContent = list.length;
+  profileStatViewsEl.textContent = formatNumber(viewsSum);
+  profileStatLikesEl.textContent = formatNumber(likesSum);
+
+  profileWorksGrid.innerHTML = list.length
+    ? list
+        .map(
+          (work) => `
+        <button type="button" class="profile-work-tile" data-open-work="${work.id}">
+          <div class="profile-work-tile-visual ${work.cover ? "has-cover" : work.visual}">
+            ${work.cover ? `<img src="${work.cover}" alt="" />` : ""}
+          </div>
+          <div class="profile-work-tile-body">
+            <p class="profile-work-tile-title">${escapeHTML(work.title)}</p>
+            <div class="profile-work-tile-meta">
+              <span>${formatNumber(work.views)} 访问</span>
+              <span>${formatNumber(work.likes)} 赞</span>
+            </div>
+          </div>
+        </button>
+      `,
+        )
+        .join("")
+    : `<div class="profile-empty">还没有作品。去发布一条，它会出现在这里。</div>`;
+
+  profileWorksGrid.querySelectorAll("[data-open-work]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      closeProfile();
+      openDetail(btn.dataset.openWork);
+    });
+  });
+};
+
+const openProfile = async (options = {}) => {
+  const fromLoginNav = options.fromLoginNav === true;
+  await syncServerSession();
+  if (!getUser()) {
+    openLogin();
+    if (!fromLoginNav) showToast("需要先登录才能打开个人主页");
+    return;
+  }
+  closeLogin();
+  pendingProfileAvatar = null;
+  renderProfilePanel();
+  profileOverlay.classList.add("is-open");
+  profileOverlay.setAttribute("aria-hidden", "false");
 };
 
 let vibyBackend = {
@@ -253,7 +418,7 @@ const probeBackend = async () => {
   }
 
   try {
-    const response = await fetch("/api/health", { credentials: "same-origin" });
+    const response = await fetch("/api/health", { credentials: "same-origin", cache: "no-store" });
     if (response.status === 404) {
       vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, problem: "static_server" };
       return vibyBackend;
@@ -283,12 +448,46 @@ const ensureBackendProbe = () => {
   return backendProbePromise;
 };
 
+/** 读取非 HttpOnly 的 viby_session_js（或同站点其它 Cookie） */
+const readDocumentCookie = (name) => {
+  const needle = `; ${name}=`;
+  const all = `; ${document.cookie}`;
+  const i = all.indexOf(needle);
+  if (i === -1) return "";
+  const start = i + needle.length;
+  const end = all.indexOf("; ", start);
+  const chunk = end === -1 ? all.slice(start) : all.slice(start, end);
+  try {
+    return decodeURIComponent(chunk) || "";
+  } catch {
+    return chunk;
+  }
+};
+
 const syncServerSession = async () => {
   try {
-    const response = await fetch("/api/me", { credentials: "include" });
+    const jsTok = readDocumentCookie("viby_session_js");
+    const headers = {};
+    if (jsTok) headers["X-Viby-Session"] = jsTok;
+
+    const response = await fetch("/api/me", { credentials: "include", cache: "no-store", headers });
     if (response.status === 404) return null;
+
+    let data = {};
+    try {
+      data = await response.json();
+    } catch {
+      data = {};
+    }
+
+    if (response.status === 401) {
+      localStorage.removeItem(authKey);
+      document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
+      updateLoginState();
+      return null;
+    }
+
     if (!response.ok) return null;
-    const data = await response.json();
     if (!data.user) return null;
 
     localStorage.setItem(
@@ -314,16 +513,39 @@ const handleAuthRedirectMessage = () => {
   if (!result) return;
 
   if (result === "success") {
-    showToast("GitHub 登录成功");
+    if (getUser()) {
+      showToast("GitHub 登录成功");
+    } else {
+      showToast("GitHub 已授权，但未建立会话。请检查 Cookie、密钥是否与 GitHub 一致，或刷新后重试");
+    }
   } else if (result === "not_configured") {
     showToast("GitHub 未就绪：在项目根目录创建 .env，写入 GITHUB_CLIENT_ID 与 GITHUB_CLIENT_SECRET，保存后重新执行 npm start");
   } else {
+    const glErr = params.get("github_err") || "";
+    const origin = window.location.origin;
+    const callbackUrl = `${origin}/api/auth/github/callback`;
+    const byErr = {
+      state:
+        "登录校验失败：浏览器未带上临时 Cookie。请关闭广告/隐私拦截、允许本站 Cookie，并全程用同一地址访问（例如 " +
+        origin +
+        "）。",
+      missing: "缺少授权参数，请在本站重新点击「使用 GitHub 登录」。",
+      code: "授权码已过期或无效，请再点一次 GitHub 登录。",
+      uri: `GitHub 提示回调地址不一致。请在 GitHub OAuth App 里将回调设为（完全一致）：${callbackUrl}，且服务器 .env 中 PUBLIC_ORIGIN=${origin}`,
+      secret: "GitHub 拒绝：Client ID 或 Client Secret 与后台不一致，请核对 .env 与 GitHub OAuth App。",
+      token: "与 GitHub 交换令牌失败，可在服务器执行 pm2 logs viby 查看 [viby] GitHub token error。",
+      net: "服务器处理登录时出错，请稍后重试或查看 pm2 logs。",
+      denied: "你已取消 GitHub 授权，如需登录请重试。",
+      github: "GitHub 返回错误，请稍后重试。",
+    };
     showToast(
-      "GitHub 登录未完成。常见原因：① 未用 npm start 打开站点；② OAuth 回调地址与当前网址不一致（localhost 与 127.0.0.1 不能混用）",
+      byErr[glErr] ||
+        `GitHub 登录未完成。请确认 OAuth 回调地址为：${callbackUrl}，且用 Node 提供 /api（勿纯静态托管）。`,
     );
   }
 
   params.delete("github_login");
+  params.delete("github_err");
   const nextUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", nextUrl);
 };
@@ -340,6 +562,7 @@ const normalizeWork = (work, index = 0) => ({
   likedBy: work.likedBy || [],
   views: work.views || 0,
   visual: work.visual || getVisualClass(index),
+  authorId: work.authorId || "",
 });
 
 const applyInteractions = () => {
@@ -514,12 +737,14 @@ const renderWorks = () => {
   updateStats();
 };
 
-const openPanel = () => {
+const openPanel = async () => {
+  await syncServerSession();
   if (!getUser()) {
     openLogin();
     showToast("请先登录后再发布作品");
     return;
   }
+  closeLogin();
   panel.classList.add("is-open");
   panel.setAttribute("aria-hidden", "false");
 };
@@ -645,14 +870,14 @@ window.addEventListener("pointermove", (event) => {
   root.style.setProperty("--spot-y", `${event.clientY}px`);
 });
 
-openButtons.forEach((button) => button.addEventListener("click", openPanel));
+openButtons.forEach((button) => button.addEventListener("click", () => void openPanel()));
 closeButton.addEventListener("click", closePanel);
 
 panel.addEventListener("click", (event) => {
   if (event.target === panel) closePanel();
 });
 
-openLoginButton.addEventListener("click", openLogin);
+openLoginButton.addEventListener("click", () => void openProfile({ fromLoginNav: true }));
 closeLoginButton.addEventListener("click", closeLogin);
 loginOverlay.addEventListener("click", (event) => {
   if (event.target === loginOverlay) closeLogin();
@@ -724,6 +949,78 @@ githubLoginButton.addEventListener("click", async () => {
   window.location.href = "/api/auth/github";
 });
 
+profileEntryButton.addEventListener("click", () => void openProfile());
+closeProfileButton.addEventListener("click", closeProfile);
+profileOverlay.addEventListener("click", (event) => {
+  if (event.target === profileOverlay) closeProfile();
+});
+
+profileAvatarInput.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    showToast("请选择图片文件");
+    profileAvatarInput.value = "";
+    return;
+  }
+  try {
+    pendingProfileAvatar = await fileToAvatarDataUrl(file);
+    profileAvatarPreview.src = pendingProfileAvatar;
+  } catch {
+    showToast("头像读取失败，请换一张试试");
+  }
+  profileAvatarInput.value = "";
+});
+
+profileSaveButton.addEventListener("click", () => {
+  const user = getUser();
+  if (!user) return;
+  const name = profileDisplayNameInput.value.trim();
+  if (!name) {
+    showToast("请填写展示名称");
+    return;
+  }
+  const patch = { displayName: name };
+  if (pendingProfileAvatar) patch.avatarDataUrl = pendingProfileAvatar;
+  setProfilePrefs(user.id, patch);
+  pendingProfileAvatar = null;
+  updateLoginState();
+  renderProfilePanel();
+  showToast("资料已保存");
+});
+
+profileResetAvatarButton.addEventListener("click", () => {
+  const user = getUser();
+  if (!user) return;
+  const prefs = { ...getProfilePrefs(user.id) };
+  if (!prefs.avatarDataUrl) {
+    showToast("当前已是默认头像");
+    return;
+  }
+  delete prefs.avatarDataUrl;
+  const map = getProfilePrefsMap();
+  map[user.id] = prefs;
+  localStorage.setItem(profilePrefsKey, JSON.stringify(map));
+  pendingProfileAvatar = null;
+  updateLoginState();
+  renderProfilePanel();
+  showToast("已恢复默认头像");
+});
+
+profileLogoutButton.addEventListener("click", async () => {
+  try {
+    await fetch("/api/logout", { method: "POST", credentials: "include", cache: "no-store" });
+  } catch {
+    /* static 托管或网络异常时仍清理本地态 */
+  }
+  localStorage.removeItem(authKey);
+  document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
+  closeProfile();
+  updateLoginState();
+  renderWorks();
+  showToast("已退出登录");
+});
+
 closeDetailButton.addEventListener("click", closeDetail);
 detailOverlay.addEventListener("click", (event) => {
   if (event.target === detailOverlay) closeDetail();
@@ -735,11 +1032,12 @@ window.addEventListener("keydown", (event) => {
     closeDetail();
     closeCropper();
     closeLogin();
+    closeProfile();
   }
 
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
-    openPanel();
+    void openPanel();
   }
 });
 
@@ -1089,6 +1387,7 @@ submitForm.addEventListener("submit", async (event) => {
     views: 0,
     likes: 0,
     isUserCreated: true,
+    authorId: getUser().id,
   };
 
   works = [newWork, ...works];
@@ -1114,9 +1413,19 @@ works = [...getStoredWorks().map(normalizeWork), ...seedWorks.map(normalizeWork)
 applyInteractions();
 renderWorks();
 updateLoginState();
-handleAuthRedirectMessage();
 (async () => {
+  const oauthResult = new URLSearchParams(window.location.search).get("github_login");
   await ensureBackendProbe();
   await syncServerSession();
+  if (getUser()) {
+    closeLogin();
+    if (oauthResult === "success") {
+      pendingProfileAvatar = null;
+      renderProfilePanel();
+      profileOverlay.classList.add("is-open");
+      profileOverlay.setAttribute("aria-hidden", "false");
+    }
+  }
+  handleAuthRedirectMessage();
   bindTilt(document.querySelectorAll(".logo-card, .floating-card, .creator-card"));
 })();

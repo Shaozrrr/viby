@@ -44,7 +44,8 @@ const escapeHTML = (value) =>
 
 const getStoredWorks = () => {
   try {
-    return JSON.parse(localStorage.getItem(storageKey)) || [];
+    const raw = JSON.parse(localStorage.getItem(storageKey) || "null");
+    return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
