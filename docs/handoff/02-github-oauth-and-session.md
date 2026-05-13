@@ -36,6 +36,7 @@
 1. 在 **`.env`** 增加：**`COOKIE_DOMAIN=.viby.ink`**（注意前导 `.`）。  
 2. 或调整 Nginx：**所有访问（含 `/api`）从 www **301** 到裸域**（与示例配置一致）。  
 3. 较新 **server.js**：若 `PUBLIC_ORIGIN=https://viby.ink` 且未设置 `COOKIE_DOMAIN`，可对**双段裸域**自动加 `.域名`；仍建议在 `.env` 显式写出以免误解。
+4. **较新 server.js**：若设置了 `PUBLIC_ORIGIN`，对 **Host 与规范主机不一致** 的 **GET/HEAD**（含 `/`、`/api/auth/github` 等）会 **301** 到 `PUBLIC_ORIGIN` 同路径，使 OAuth 始终在规范主机上完成。关闭：`VIBY_DISABLE_CANONICAL_HOST_REDIRECT=1`。
 
 ## 4. 前端 Toast 与 `github_err`
 

@@ -454,6 +454,37 @@ const handleLogout = (request, response) => {
   response.end();
 };
 
+/** 反代后的浏览器主机名（不含端口） */
+const requestHostname = (request) => {
+  const raw = (request.headers["x-forwarded-host"] || request.headers.host || "").split(",")[0].trim();
+  return raw.split(":")[0].toLowerCase();
+};
+
+/**
+ * PUBLIC_ORIGIN 与当前 Host 不一致时，对 GET/HEAD 统一 301 到规范主机。
+ * 解决从 www 点「GitHub 登录」但回调在裸域导致 state Cookie 丢失的问题（不依赖 Nginx 是否已做 www 跳转）。
+ * 关闭：环境变量 VIBY_DISABLE_CANONICAL_HOST_REDIRECT=1
+ */
+const tryCanonicalHostRedirect = (request, response, url) => {
+  if (process.env.VIBY_DISABLE_CANONICAL_HOST_REDIRECT?.trim() === "1") return false;
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  const po = process.env.PUBLIC_ORIGIN?.trim();
+  if (!po) return false;
+  let canon;
+  try {
+    canon = new URL(po);
+  } catch {
+    return false;
+  }
+  const canonHost = canon.hostname.toLowerCase();
+  const reqHost = requestHostname(request);
+  if (!reqHost || reqHost === canonHost) return false;
+  const dest = `${canon.protocol}//${canonHost}${url.pathname}${url.search}`;
+  response.writeHead(301, { Location: dest });
+  response.end();
+  return true;
+};
+
 const serveStatic = (request, response, url) => {
   const requestPath = url.pathname === "/" ? "/index.html" : url.pathname;
   const filePath = path.normalize(path.join(root, requestPath));
@@ -472,6 +503,8 @@ const serveStatic = (request, response, url) => {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
+
+  if (tryCanonicalHostRedirect(request, response, url)) return;
 
   if (request.method === "GET" && url.pathname === "/api/auth/github") {
     handleGitHubStart(request, response);
@@ -524,6 +557,13 @@ server.listen(port, host, () => {
   console.log(`GitHub OAuth「Authorization callback URL」填：${callbackUrl}`);
   if (!process.env.PUBLIC_ORIGIN?.trim()) {
     console.log("未设置 PUBLIC_ORIGIN。若走 HTTPS 反代，请在 .env 写入 PUBLIC_ORIGIN=https://你的域名，并让 Nginx 设置 X-Forwarded-Proto。");
+  } else if (process.env.VIBY_DISABLE_CANONICAL_HOST_REDIRECT?.trim() !== "1") {
+    try {
+      const h = new URL(process.env.PUBLIC_ORIGIN.trim()).hostname;
+      console.log(`[viby] GET/HEAD 若 Host≠${h} 将 301 到 PUBLIC_ORIGIN（OAuth 与 Cookie 一致）；关闭：VIBY_DISABLE_CANONICAL_HOST_REDIRECT=1`);
+    } catch {
+      /* ignore */
+    }
   }
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
     console.warn("[viby] GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET 未配置，GitHub 登录不可用");
