@@ -109,6 +109,21 @@ bash scripts/generate-deploy-bundles.sh
 git add scripts/bundles && git commit -m "refresh deploy bundles"
 ```
 
+## 8. 仅用 GitHub 更新线上（推荐：与「改 GitHub → 网站更新」一致）
+
+**事实关系**（避免误解）：
+
+- **GitHub** 只保存**源代码**，不会替你跑 Node；**域名**在 DNS 里仍指向 **VPS 的 IP**。
+- 网站是 VPS 上的 **Nginx + Node（PM2）** 在跑；要更新线上，必须把新文件**同步到 VPS** 并 **重启进程**。
+
+若希望 **「只 push 到 GitHub，不再登录 VPS」**，在仓库里配置 **GitHub Actions**（本仓库已提供 workflow）：
+
+1. 阅读 **`.github/DEPLOY-SECRETS.md`**，在 GitHub **Settings → Secrets and variables → Actions** 添加 `VPS_SSH_PRIVATE_KEY`、`VPS_HOST`、`VPS_USER` 等。
+2. 在服务器上把对应**公钥**写入部署用户的 `~/.ssh/authorized_keys`，并保证该用户对 `VPS_DEPLOY_PATH`（默认 `/var/www/viby`）可写。
+3. 之后每次 **`git push origin main`**，Actions 会自动 **rsync + `pm2 restart`**。也可在 Actions 页手动运行 **Deploy to VPS**。
+
+若暂未配置 Secrets，workflow 会失败；可继续用本机 **`npm run publish`** 或 **`npm run deploy:vps`**（见上文 5b / 5c）。
+
 ## 6. 验证命令（生产机或本机对公网）
 
 ```bash
