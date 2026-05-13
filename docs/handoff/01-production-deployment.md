@@ -88,6 +88,10 @@ curl -sS https://viby.ink/api/health
 
 # OAuth 入口应 302 到 github.com，且 Set-Cookie 含 viby_oauth_state
 curl -sSI https://viby.ink/api/auth/github | head -20
+
+# 确认公网拉到的 script.js 已是新版本（含 getStoredWorks 的 Array.isArray；旧包为 0）
+curl -sS "https://viby.ink/script.js" | grep -c "Array.isArray" || true
+wc -c /var/www/viby/script.js
 ```
 
 生产机确认 **`server.js` 版本**（须含 `oauthFailRedirect` 与 `github_err`）：
