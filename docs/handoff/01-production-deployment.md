@@ -73,6 +73,23 @@ sudo bash scripts/fix-production-oauth.sh /var/www/viby
 sudo bash /path/to/fix-production-oauth.sh /var/www/viby /path/to/bundles
 ```
 
+## 5b. 从本机一键同步到 VPS（推荐：不必再 SSH 登录服务器敲命令）
+
+1. 本机已能一条命令登录服务器，例如：`ssh ubuntu@你的IP` 不需要再输入密码（先在本机执行一次 `ssh-copy-id ubuntu@你的IP`）。
+2. 在仓库根目录复制配置：  
+   `cp .env.deploy.example .env.deploy`  
+   编辑 `.env.deploy`，填写 `VIBY_DEPLOY_SSH`、`VIBY_DEPLOY_PATH`；若要部署后自动检查公网脚本是否更新，加上 `VIBY_PUBLIC_URL=https://viby.ink`。
+3. 在本机项目根执行：
+
+```bash
+npm run deploy:vps
+```
+
+脚本会用 **rsync** 把 `server.js`、`script.js`、`index.html`、`styles.css`、`works.*`、`ecosystem.config.cjs`、`package.json` 以及 `assets/`、`scripts/` 同步到远端目录，再 **ssh** 执行 `pm2 restart`。  
+若设置了 `VIBY_PUBLIC_URL`，会在本机 `curl` 公网 `script.js` 并检查是否含 `Array.isArray`（为 0 则报错退出，便于发现 Nginx 指错目录或 CDN 缓存）。
+
+`.env.deploy` 已加入 `.gitignore`，勿提交。
+
 本地更新 `server.js` / `script.js` 后重新生成 bundle：
 
 ```bash

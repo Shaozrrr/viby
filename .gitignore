@@ -1,4 +1,5 @@
 .env
+.env.deploy
 node_modules/
 
 # Cursor / 本地工具（不要进仓库）
@@ -6,4 +7,4 @@ agent-tools/
 agent-transcripts/
 mcps/
 terminals/
-.cursor/
+/data/

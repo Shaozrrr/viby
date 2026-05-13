@@ -5,8 +5,11 @@
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check script.js && node --check works.js",
+    "selftest:auth": "bash scripts/selftest-auth.sh",
+    "patch:oauth-toast": "node scripts/patch-oauth-toast.cjs",
     "pm2:start": "pm2 start ecosystem.config.cjs",
-    "pm2:restart": "pm2 restart viby"
+    "pm2:restart": "pm2 restart viby",
+    "deploy:vps": "bash scripts/deploy-from-local.sh"
   },
   "engines": {
     "node": ">=18"
