@@ -9,7 +9,10 @@
     "patch:oauth-toast": "node scripts/patch-oauth-toast.cjs",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:restart": "pm2 restart viby",
-    "deploy:vps": "bash scripts/deploy-from-local.sh"
+    "deploy:vps": "bash scripts/deploy-from-local.sh",
+    "git:pull": "git pull origin main",
+    "git:push": "git push origin HEAD",
+    "git:ship": "git pull --rebase origin main && git push origin HEAD"
   },
   "engines": {
     "node": ">=18"
