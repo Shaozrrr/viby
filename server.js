@@ -495,8 +495,18 @@ const serveStatic = (request, response, url) => {
     return;
   }
 
+  const ext = path.extname(filePath);
+  /** HTML 带入口与 ?v= 引用，勿长期缓存，避免线上已更新但用户仍跑旧 script.js */
+  const cacheControl =
+    ext === ".html"
+      ? "no-store, must-revalidate"
+      : ext === ".js" || ext === ".css"
+        ? "no-cache, must-revalidate"
+        : "public, max-age=3600";
+
   response.writeHead(200, {
-    "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream",
+    "Content-Type": mimeTypes[ext] || "application/octet-stream",
+    "Cache-Control": cacheControl,
   });
   fs.createReadStream(filePath).pipe(response);
 };

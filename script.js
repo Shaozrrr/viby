@@ -552,18 +552,23 @@ const handleAuthRedirectMessage = () => {
 
 const getVisualClass = (index) => ["visual-one", "visual-two", "visual-three"][index % 3];
 
-const normalizeWork = (work, index = 0) => ({
-  ...work,
-  cover: work.cover || "",
-  photos: work.photos || (work.cover ? [work.cover] : []),
-  tool: work.tool === "Vibe coding" ? "" : work.tool,
-  createdAt: work.createdAt || Date.now() - index * oneDay,
-  likes: Number.isFinite(work.likes) ? work.likes : work.saves || 0,
-  likedBy: work.likedBy || [],
-  views: work.views || 0,
-  visual: work.visual || getVisualClass(index),
-  authorId: work.authorId || "",
-});
+const normalizeWork = (work, index = 0) => {
+  if (!work || typeof work !== "object") return null;
+  const cat = typeof work.category === "string" && work.category ? work.category : "website";
+  return {
+    ...work,
+    category: cat,
+    cover: work.cover || "",
+    photos: work.photos || (work.cover ? [work.cover] : []),
+    tool: work.tool === "Vibe coding" ? "" : work.tool,
+    createdAt: work.createdAt || Date.now() - index * oneDay,
+    likes: Number.isFinite(work.likes) ? work.likes : work.saves || 0,
+    likedBy: work.likedBy || [],
+    views: work.views || 0,
+    visual: work.visual || getVisualClass(index),
+    authorId: work.authorId || "",
+  };
+};
 
 const applyInteractions = () => {
   const interactions = getInteractions();
@@ -609,15 +614,16 @@ const showToast = (message) => {
 };
 
 const getTypeLabel = (category) => {
-  if (category.includes("website")) return "Website";
-  if (category.includes("app")) return "App";
-  if (category.includes("open")) return "Open source";
-  if (category.includes("ai")) return "AI app";
+  const c = String(category || "");
+  if (c.includes("website")) return "Website";
+  if (c.includes("app")) return "App";
+  if (c.includes("open")) return "Open source";
+  if (c.includes("ai")) return "AI app";
   return "Tool";
 };
 
 const getCategoryText = (category) =>
-  category
+  String(category || "")
     .replace("website", "网站")
     .replace("app", "APP")
     .replace("open", "开源")
@@ -1409,9 +1415,21 @@ submitForm.addEventListener("submit", async (event) => {
   showToast("作品已发布，已进入最新列表");
 });
 
-works = [...getStoredWorks().map(normalizeWork), ...seedWorks.map(normalizeWork)];
-applyInteractions();
-renderWorks();
+works = [
+  ...getStoredWorks()
+    .map((work, index) => normalizeWork(work, index))
+    .filter(Boolean),
+  ...seedWorks.map((work, index) => normalizeWork(work, index)).filter(Boolean),
+];
+try {
+  applyInteractions();
+  renderWorks();
+} catch (e) {
+  console.error("[viby] 作品列表渲染失败，已回退为仅展示示例作品", e);
+  works = seedWorks.map((work, index) => normalizeWork(work, index)).filter(Boolean);
+  applyInteractions();
+  renderWorks();
+}
 updateLoginState();
 (async () => {
   const oauthResult = new URLSearchParams(window.location.search).get("github_login");
