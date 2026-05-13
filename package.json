@@ -12,7 +12,8 @@
     "deploy:vps": "bash scripts/deploy-from-local.sh",
     "git:pull": "git pull origin main",
     "git:push": "git push origin HEAD",
-    "git:ship": "git pull --rebase origin main && git push origin HEAD"
+    "git:ship": "git pull --rebase origin main && git push origin HEAD",
+    "publish": "bash scripts/publish-all.sh"
   },
   "engines": {
     "node": ">=18"

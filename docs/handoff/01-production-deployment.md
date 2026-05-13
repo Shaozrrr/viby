@@ -90,6 +90,18 @@ npm run deploy:vps
 
 `.env.deploy` 已加入 `.gitignore`，勿提交。
 
+## 5c. 一键 GitHub + VPS
+
+已配置 `.env.deploy` 后，在本机仓库根执行：
+
+```bash
+npm run publish
+```
+
+会依次：`git pull --rebase origin main` → `npm run check` →（有未提交改动则）`git add -A` 与 `git commit` → `git push` →`npm run deploy:vps`。  
+提交说明默认带 UTC 时间戳，可覆盖：`PUBLISH_MSG="fix: 登录与作品区" npm run publish`。  
+若未创建 `.env.deploy`，则只完成 GitHub 推送，脚本会提示并跳过 VPS。
+
 本地更新 `server.js` / `script.js` 后重新生成 bundle：
 
 ```bash
