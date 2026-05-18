@@ -1,0 +1,87 @@
+# 推送到 main 后自动部署到 VPS（无需手动登录服务器）
+# 先在 GitHub 配置 Secrets：见 .github/DEPLOY-SECRETS.md
+# 说明：域名 DNS 仍指向 VPS；GitHub 存代码；本 workflow 用 SSH 把文件同步到 VPS 并 pm2 restart。
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          test -n "${{ secrets.VPS_SSH_PRIVATE_KEY }}" || (echo "Missing secret: VPS_SSH_PRIVATE_KEY" && exit 1)
+          test -n "${{ secrets.VPS_HOST }}" || (echo "Missing secret: VPS_HOST" && exit 1)
+          test -n "${{ secrets.VPS_USER }}" || (echo "Missing secret: VPS_USER" && exit 1)
+
+      - name: Install rsync
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq rsync openssh-client
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/vps_deploy_key
+          chmod 600 ~/.ssh/vps_deploy_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Rsync site files
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          REMOTE_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          R="${REMOTE_PATH:-/var/www/viby}"
+          T="${VPS_USER}@${VPS_HOST}"
+          SSH=(ssh -i ~/.ssh/vps_deploy_key -o StrictHostKeyChecking=yes)
+          rsync -avz --checksum -e "${SSH[*]}" \
+            server.js script.js index.html styles.css works.js works.html ecosystem.config.cjs package.json \
+            "$T:$R/"
+          if [[ -d assets ]]; then
+            rsync -avz --checksum -e "${SSH[*]}" assets/ "$T:$R/assets/"
+          fi
+          if [[ -d scripts ]]; then
+            rsync -avz --checksum -e "${SSH[*]}" scripts/ "$T:$R/scripts/"
+          fi
+
+      - name: PM2 restart on server
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          REMOTE_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+          PM2_APP: ${{ secrets.VPS_PM2_APP }}
+        run: |
+          set -euo pipefail
+          R="${REMOTE_PATH:-/var/www/viby}"
+          APP="${PM2_APP:-viby}"
+          T="${VPS_USER}@${VPS_HOST}"
+          ssh -i ~/.ssh/vps_deploy_key -o StrictHostKeyChecking=yes "$T" \
+            "cd \"${R}\" && node --check server.js && node --check script.js && command -v pm2 >/dev/null 2>&1 && (pm2 restart \"${APP}\" || pm2 start ecosystem.config.cjs)"
+
+      - name: Optional public smoke check
+        env:
+          BASE: ${{ secrets.VIBY_PUBLIC_URL }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${BASE:-}" ]]; then
+            echo "Skip: set repository secret VIBY_PUBLIC_URL (e.g. https://viby.ink) to verify script.js after deploy."
+            exit 0
+          fi
+          n="$(curl -sS -m 35 "${BASE%/}/script.js" | grep -c "Array.isArray" || true)"
+          echo "Array.isArray count in public script.js: $n"
+          test "$n" != "0"
