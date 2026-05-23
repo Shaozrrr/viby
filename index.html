@@ -268,12 +268,14 @@
             技术栈
             <input name="stack" type="text" placeholder="React / Supabase / Cloudflare" />
           </label>
-          <label>
+          <label class="release-notes-field">
             本次版本迭代了什么
             <textarea
               name="releaseNotes"
-              placeholder="每行写一条，例如：&#10;优化竖图裁剪体验&#10;新增作者主页入口&#10;修复移动端适配"
+              rows="6"
+              placeholder="每行写一条更新内容"
             ></textarea>
+            <small class="field-note">例如：优化竖图裁剪体验 / 新增作者主页入口 / 修复移动端适配</small>
           </label>
           <label>
             GitHub 链接

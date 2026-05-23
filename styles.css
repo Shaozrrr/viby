@@ -1096,7 +1096,24 @@ textarea::placeholder {
   font-size: 14px;
   font-weight: 600;
   line-height: 1.7;
-  white-space: pre-line;
+  white-space: normal;
+}
+
+.release-notes-field {
+  gap: 10px;
+}
+
+.release-notes-field textarea {
+  min-height: 168px;
+  padding: 18px 20px;
+  border-radius: 22px;
+}
+
+.field-note {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.7;
 }
 
 input:focus,
@@ -2673,28 +2690,31 @@ input[type="range"] {
 .crop-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;
-  align-items: stretch;
+  align-items: center;
   gap: 18px;
 }
 
 .crop-frame {
-  width: min(100%, 700px);
+  width: min(100%, 620px);
   min-width: 0;
   justify-self: center;
-  max-height: none;
+  max-height: min(58vh, 440px);
   cursor: grab;
   transition:
     width 220ms ease,
     max-width 220ms ease,
+    max-height 220ms ease,
     box-shadow 220ms ease;
 }
 
 .crop-frame[data-crop-mode="portrait"] {
-  width: min(100%, 480px);
+  width: min(100%, 320px);
+  max-height: min(54vh, 430px);
 }
 
 .crop-frame[data-crop-mode="landscape"] {
-  width: min(100%, 700px);
+  width: min(100%, 620px);
+  max-height: min(58vh, 440px);
 }
 
 .crop-frame.is-dragging {
