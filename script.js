@@ -3,6 +3,7 @@ const panel = document.querySelector(".submit-panel");
 const openButtons = document.querySelectorAll("[data-open-submit]");
 const closeButton = document.querySelector("[data-close-submit]");
 const rankButtons = document.querySelectorAll("[data-rank]");
+const heroTitle = document.querySelector("#heroTitle");
 const loginOverlay = document.querySelector(".login-overlay");
 const openLoginButton = document.querySelector("[data-open-login]");
 const closeLoginButton = document.querySelector("[data-close-login]");
@@ -15,33 +16,55 @@ const statWorks = document.querySelector("#statWorks");
 const statViews = document.querySelector("#statViews");
 const statLikes = document.querySelector("#statLikes");
 const toast = document.querySelector(".toast");
+
 const coverInput = submitForm.querySelector('[name="cover"]');
-const coverCropper = document.querySelector("#coverCropper");
 const pickCoverButton = document.querySelector("[data-pick-cover]");
-const confirmCropButton = document.querySelector("[data-confirm-crop]");
-const cancelCropButton = document.querySelector("[data-cancel-crop]");
 const coverThumb = document.querySelector("#coverThumb");
 const coverThumbs = document.querySelector("#coverThumbs");
+const coverCountText = document.querySelector("#coverCountText");
+const coverHelperText = document.querySelector("#coverHelperText");
+const coverClearButton = document.querySelector("#coverClearButton");
+
+const coverCropper = document.querySelector("#coverCropper");
 const coverPreview = document.querySelector("#coverPreview");
-const cropBox = document.querySelector("#cropBox");
+const coverFrame = document.querySelector("#cropViewport");
+const confirmCropButton = document.querySelector("[data-confirm-crop]");
+const cancelCropButtons = document.querySelectorAll("[data-cancel-crop]");
+const cropStageLabel = document.querySelector("#cropStageLabel");
+const cropCounter = document.querySelector("#cropCounter");
+const cropZoom = document.querySelector("#cropZoom");
+const cropZoomValue = document.querySelector("#cropZoomValue");
+const cropResetButton = document.querySelector("[data-reset-crop]");
+
 const detailOverlay = document.querySelector(".detail-overlay");
 const closeDetailButton = document.querySelector("[data-close-detail]");
 const detailCover = document.querySelector("#detailCover");
+const detailImage = document.querySelector("#detailImage");
+const detailGalleryEmpty = document.querySelector("#detailGalleryEmpty");
+const detailGalleryCounter = document.querySelector("#detailGalleryCounter");
+const detailGalleryTrack = document.querySelector("#detailGalleryTrack");
+const detailNavButtons = document.querySelectorAll("[data-detail-nav]");
 const detailType = document.querySelector("#detailType");
 const detailTitle = document.querySelector("#detailTitle");
 const detailDescription = document.querySelector("#detailDescription");
+const detailAuthorCard = document.querySelector("#detailAuthorCard");
 const detailMeta = document.querySelector("#detailMeta");
 const detailLikes = document.querySelector("#detailLikes");
 const detailViews = document.querySelector("#detailViews");
 const detailDate = document.querySelector("#detailDate");
 const detailActions = document.querySelector("#detailActions");
+
 const profileOverlay = document.querySelector(".profile-overlay");
+const profileShell = document.querySelector(".profile-shell");
 const profileEntryButton = document.querySelector("[data-open-profile]");
 const closeProfileButton = document.querySelector("[data-close-profile]");
 const profileAvatarInput = document.querySelector("#profileAvatarInput");
 const profileAvatarPreview = document.querySelector("#profileAvatarPreview");
 const profileDisplayNameInput = document.querySelector("#profileDisplayName");
+const profileModeLine = document.querySelector("#profileModeLine");
 const profileEmailLine = document.querySelector("#profileEmailLine");
+const profileIntroLine = document.querySelector("#profileIntroLine");
+const profileFooterNote = document.querySelector("#profileFooterNote");
 const profileStatWorksEl = document.querySelector("#profileStatWorks");
 const profileStatViewsEl = document.querySelector("#profileStatViews");
 const profileStatLikesEl = document.querySelector("#profileStatLikes");
@@ -57,6 +80,67 @@ const accountsKey = "viby-accounts";
 const interactionsKey = "viby-interactions";
 const emailCodeKey = "viby-email-code";
 const oneDay = 24 * 60 * 60 * 1000;
+const defaultAvatar = "./logo-source.png";
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const safeTrim = (value) => String(value || "").trim();
+const escapeHTML = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const slugify = (value) =>
+  safeTrim(value)
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const encodeSvg = (svg) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
+const createAvatarDataUrl = (label, colorA, colorB) => {
+  const text = safeTrim(label).slice(0, 2) || "V";
+  return encodeSvg(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${colorA}" />
+          <stop offset="100%" stop-color="${colorB}" />
+        </linearGradient>
+      </defs>
+      <rect width="160" height="160" rx="44" fill="url(#g)" />
+      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif"
+        font-size="56" font-weight="700" fill="white">${text}</text>
+    </svg>
+  `);
+};
+
+const seedAuthors = [
+  {
+    id: "seed-author-ling",
+    name: "玲羽",
+    handle: "@lingyu-builds",
+    bio: "偏爱把模糊灵感做成能直接打开的小作品。",
+    avatar: createAvatarDataUrl("玲羽", "#7553ff", "#ff8a6c"),
+  },
+  {
+    id: "seed-author-mori",
+    name: "Mori Lab",
+    handle: "@mori-lab",
+    bio: "独立开发实验室，专注让工具更轻、更快、更顺手。",
+    avatar: createAvatarDataUrl("ML", "#111827", "#2dd4bf"),
+  },
+  {
+    id: "seed-author-zhou",
+    name: "周野",
+    handle: "@zhouye",
+    bio: "喜欢做很小但马上能用的产品切片。",
+    avatar: createAvatarDataUrl("周野", "#ef6b5c", "#8b5cf6"),
+  },
+];
 
 const seedWorks = [
   {
@@ -74,6 +158,7 @@ const seedWorks = [
     createdAt: Date.now() - 2 * oneDay,
     views: 1280,
     likes: 42,
+    authorIndex: 0,
   },
   {
     id: "form-echo",
@@ -90,6 +175,7 @@ const seedWorks = [
     createdAt: Date.now() - 13 * oneDay,
     views: 2104,
     likes: 67,
+    authorIndex: 1,
   },
   {
     id: "tiny-invoice",
@@ -106,6 +192,7 @@ const seedWorks = [
     createdAt: Date.now() - 35 * oneDay,
     views: 1416,
     likes: 31,
+    authorIndex: 2,
   },
   {
     id: "launch-desk",
@@ -122,6 +209,7 @@ const seedWorks = [
     createdAt: Date.now() - 4 * oneDay,
     views: 842,
     likes: 29,
+    authorIndex: 1,
   },
   {
     id: "habit-pulse",
@@ -138,6 +226,7 @@ const seedWorks = [
     createdAt: Date.now() - 5 * oneDay,
     views: 733,
     likes: 25,
+    authorIndex: 0,
   },
   {
     id: "note-garden",
@@ -154,6 +243,7 @@ const seedWorks = [
     createdAt: Date.now() - 8 * oneDay,
     views: 1012,
     likes: 34,
+    authorIndex: 2,
   },
   {
     id: "fit-screen",
@@ -170,6 +260,7 @@ const seedWorks = [
     createdAt: Date.now() - 18 * oneDay,
     views: 618,
     likes: 18,
+    authorIndex: 1,
   },
   {
     id: "copy-room",
@@ -186,8 +277,19 @@ const seedWorks = [
     createdAt: Date.now() - 28 * oneDay,
     views: 940,
     likes: 21,
+    authorIndex: 0,
   },
-];
+].map((work) => {
+  const author = seedAuthors[work.authorIndex] || seedAuthors[0];
+  return {
+    ...work,
+    authorId: author.id,
+    authorName: author.name,
+    authorAvatar: author.avatar,
+    authorHandle: author.handle,
+    authorBio: author.bio,
+  };
+});
 
 let works = [];
 let activeRank = "latest";
@@ -197,16 +299,20 @@ let cropIndex = 0;
 let croppedCovers = [];
 let sourceCovers = [];
 let editingCoverIndex = null;
-let cropBoxState = null;
+let cropPointerState = null;
 let pendingProfileAvatar = null;
+let activeDetailWorkId = "";
+let activeDetailPhotoIndex = 0;
+let activeProfileContext = null;
 
-const escapeHTML = (value) =>
-  String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+let vibyBackend = {
+  checked: false,
+  apiOnline: false,
+  githubOAuthReady: false,
+  problem: null,
+};
+
+let backendProbePromise = null;
 
 const getStoredWorks = () => {
   try {
@@ -260,53 +366,6 @@ const setProfilePrefs = (userId, patch) => {
   localStorage.setItem(profilePrefsKey, JSON.stringify(map));
 };
 
-const fileToAvatarDataUrl = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const image = new Image();
-      image.addEventListener("load", () => {
-        const canvas = document.createElement("canvas");
-        const size = 160;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0, size, size);
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
-      });
-      image.addEventListener("error", reject);
-      image.src = reader.result;
-    });
-    reader.addEventListener("error", reject);
-    reader.readAsDataURL(file);
-  });
-
-const getProfilePresentation = (user) => {
-  if (!user) return { displayName: "", avatarUrl: "" };
-  const prefs = getProfilePrefs(user.id);
-  const displayName = String(
-    prefs.displayName || user.name || (user.email || "").split("@")[0] || "创作者",
-  ).trim();
-  const avatarUrl = prefs.avatarDataUrl || user.avatar || "";
-  return { displayName, avatarUrl };
-};
-
-const getUserWorks = (userId) =>
-  works.filter((work) => work.isUserCreated && work.authorId === userId);
-
-const migrateWorksAuthor = () => {
-  const user = getUser();
-  if (!user) return;
-  let changed = false;
-  works.forEach((work) => {
-    if (work.isUserCreated && !work.authorId) {
-      work.authorId = user.id;
-      changed = true;
-    }
-  });
-  if (changed) saveUserWorks();
-};
-
 const getUser = () => {
   try {
     return JSON.parse(localStorage.getItem(authKey));
@@ -315,17 +374,428 @@ const getUser = () => {
   }
 };
 
+const fileToAvatarDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const image = new Image();
+      image.addEventListener("load", () => {
+        const canvas = document.createElement("canvas");
+        const size = 180;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0, size, size);
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      });
+      image.addEventListener("error", reject);
+      image.src = reader.result;
+    });
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
+  });
+
+const formatHandle = (handle, fallbackName = "creator") => {
+  const raw = safeTrim(handle);
+  if (raw.startsWith("@")) return raw;
+  if (raw) return `@${raw}`;
+  const slug = slugify(fallbackName) || "creator";
+  return `@${slug}`;
+};
+
+const getProfilePresentation = (user) => {
+  if (!user) {
+    return {
+      displayName: "",
+      avatarUrl: defaultAvatar,
+      handle: "@creator",
+    };
+  }
+
+  const prefs = getProfilePrefs(user.id);
+  const displayName = safeTrim(
+    prefs.displayName || user.name || (user.email || "").split("@")[0] || "创作者",
+  );
+  const avatarUrl = safeTrim(prefs.avatarDataUrl || user.avatar) || defaultAvatar;
+  const handle = formatHandle((user.email || displayName).split("@")[0], displayName);
+
+  return { displayName, avatarUrl, handle };
+};
+
+const buildCurrentUserAuthorSnapshot = (user = getUser()) => {
+  if (!user) return null;
+  const { displayName, avatarUrl, handle } = getProfilePresentation(user);
+  return {
+    id: user.id,
+    displayName,
+    avatarUrl,
+    handle,
+    bio: "这是我的 Viby 创作者主页，欢迎继续逛我的作品。",
+  };
+};
+
+const getAuthorSnapshotForWork = (work) => {
+  const user = getUser();
+  if (user && work.authorId && user.id === work.authorId) {
+    const current = buildCurrentUserAuthorSnapshot(user);
+    if (current) return current;
+  }
+
+  return {
+    id: work.authorId || "",
+    displayName: safeTrim(work.authorName) || "匿名创作者",
+    avatarUrl: safeTrim(work.authorAvatar) || defaultAvatar,
+    handle: formatHandle(work.authorHandle, work.authorName),
+    bio: safeTrim(work.authorBio) || "这位创作者还没有留下更多介绍。",
+  };
+};
+
+const getVisualClass = (index) => ["visual-one", "visual-two", "visual-three"][index % 3];
+
+const normalizeWork = (work, index = 0) => {
+  if (!work || typeof work !== "object") return null;
+  const fallbackAuthor = seedAuthors[index % seedAuthors.length];
+  const baseLikes =
+    Number.isFinite(work.baseLikes) && work.baseLikes >= 0
+      ? work.baseLikes
+      : Number.isFinite(work.likes) && work.likes >= 0
+        ? work.likes
+        : Number.isFinite(work.saves) && work.saves >= 0
+          ? work.saves
+          : 0;
+  const likedBy = Array.isArray(work.likedBy) ? work.likedBy.filter(Boolean) : [];
+  const photos = Array.isArray(work.photos)
+    ? work.photos.filter(Boolean)
+    : work.cover
+      ? [work.cover]
+      : [];
+
+  return {
+    ...work,
+    category: safeTrim(work.category) || "website",
+    type: safeTrim(work.type) || (safeTrim(work.category) === "app" ? "App" : "Website"),
+    cover: safeTrim(work.cover) || photos[0] || "",
+    photos,
+    tool: safeTrim(work.tool === "Vibe coding" ? "" : work.tool),
+    stack: safeTrim(work.stack) || "",
+    devices:
+      Array.isArray(work.devices) && work.devices.length
+        ? work.devices
+        : safeTrim(work.category) === "app"
+          ? ["手机端", "电脑端"]
+          : ["电脑端"],
+    createdAt: Number.isFinite(work.createdAt) ? work.createdAt : Date.now() - index * oneDay,
+    views: Number.isFinite(work.views) ? work.views : 0,
+    baseLikes,
+    likedBy,
+    likes: baseLikes + likedBy.length,
+    visual: safeTrim(work.visual) || getVisualClass(index),
+    authorId: safeTrim(work.authorId) || fallbackAuthor.id,
+    authorName: safeTrim(work.authorName) || fallbackAuthor.name,
+    authorAvatar: safeTrim(work.authorAvatar) || fallbackAuthor.avatar,
+    authorHandle: formatHandle(work.authorHandle || fallbackAuthor.handle, work.authorName || fallbackAuthor.name),
+    authorBio: safeTrim(work.authorBio) || fallbackAuthor.bio,
+    isUserCreated: Boolean(work.isUserCreated),
+  };
+};
+
+const saveUserWorks = () => {
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify(
+      works.filter((work) => work.isUserCreated).map((work) => ({
+        ...work,
+        likes: work.baseLikes + (work.likedBy?.length || 0),
+      })),
+    ),
+  );
+};
+
+const applyInteractions = () => {
+  const interactions = getInteractions();
+  works = works.map((work) => {
+    const likedBy = Array.isArray(interactions[work.id]?.likedBy)
+      ? interactions[work.id].likedBy
+      : work.likedBy || [];
+    return {
+      ...work,
+      likedBy,
+      likes: (work.baseLikes || 0) + likedBy.length,
+    };
+  });
+};
+
+const syncAuthoredWorksWithProfile = (user = getUser()) => {
+  if (!user) return;
+  const current = buildCurrentUserAuthorSnapshot(user);
+  if (!current) return;
+
+  let changed = false;
+  works = works.map((work) => {
+    if (!work.isUserCreated || work.authorId !== user.id) return work;
+
+    const next = {
+      ...work,
+      authorName: current.displayName,
+      authorAvatar: current.avatarUrl,
+      authorHandle: current.handle,
+      authorBio: current.bio,
+    };
+
+    if (
+      next.authorName !== work.authorName ||
+      next.authorAvatar !== work.authorAvatar ||
+      next.authorHandle !== work.authorHandle ||
+      next.authorBio !== work.authorBio
+    ) {
+      changed = true;
+    }
+
+    return next;
+  });
+
+  if (changed) saveUserWorks();
+};
+
+const formatNumber = (value) => {
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
+  return String(value);
+};
+
+const formatDate = (timestamp) =>
+  new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(timestamp));
+
+const formatRelativeDate = (timestamp) => {
+  const diff = Date.now() - timestamp;
+  const days = Math.floor(diff / oneDay);
+  if (days <= 0) return "今天发布";
+  if (days === 1) return "1 天前";
+  if (days < 30) return `${days} 天前`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} 个月前`;
+  return `${Math.floor(months / 12)} 年前`;
+};
+
+const showToast = (message) => {
+  toast.textContent = message;
+  toast.classList.add("is-visible");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => {
+    toast.classList.remove("is-visible");
+  }, 2200);
+};
+
+const getTypeLabel = (category) => {
+  const c = String(category || "");
+  if (c.includes("website")) return "Website";
+  if (c.includes("app")) return "App";
+  if (c.includes("open")) return "Open source";
+  if (c.includes("ai")) return "AI app";
+  return "Tool";
+};
+
+const getCategoryText = (category) =>
+  String(category || "")
+    .replace("website", "网站")
+    .replace("app", "APP")
+    .replace("open", "开源")
+    .replace("tool", "小工具")
+    .replace("ai", "AI 应用");
+
+const sanitizeMetaLabel = (value) => {
+  const text = safeTrim(value);
+  if (!text) return "";
+  if (text.toLowerCase() === "live") return "";
+  if (text.toLowerCase() === "v0") return "";
+  return text;
+};
+
+const getSelectedDevices = () => {
+  const devices = [...submitForm.querySelectorAll('[name="devices"]:checked')].map(
+    (input) => input.value,
+  );
+  return devices.length ? devices : ["电脑端"];
+};
+
+const updateStats = () => {
+  statWorks.textContent = works.length;
+  statViews.textContent = formatNumber(works.reduce((sum, work) => sum + (work.views || 0), 0));
+  statLikes.textContent = formatNumber(works.reduce((sum, work) => sum + (work.likes || 0), 0));
+};
+
+const likeWork = (id) => {
+  const user = getUser();
+  if (!user) {
+    openLogin();
+    showToast("登录后才能点赞");
+    return false;
+  }
+
+  const work = works.find((item) => item.id === id);
+  if (!work) return false;
+
+  const likedBy = Array.isArray(work.likedBy) ? [...work.likedBy] : [];
+  if (likedBy.includes(user.id)) {
+    showToast("你已经给这个作品点过赞了");
+    return false;
+  }
+
+  likedBy.push(user.id);
+  work.likedBy = likedBy;
+  work.likes = (work.baseLikes || 0) + likedBy.length;
+
+  const interactions = getInteractions();
+  interactions[id] = { ...(interactions[id] || {}), likedBy };
+  saveInteractions(interactions);
+  saveUserWorks();
+  showToast("已点赞，榜单会实时更新");
+  return true;
+};
+
+const incrementViews = (id) => {
+  const work = works.find((item) => item.id === id);
+  if (!work) return;
+  work.views += 1;
+  saveUserWorks();
+  updateStats();
+  renderWorks();
+  if (activeDetailWorkId === id) {
+    detailViews.textContent = formatNumber(work.views);
+  }
+};
+
+const bindTilt = (cards) => {
+  cards.forEach((card) => {
+    card.addEventListener("pointermove", (event) => {
+      const rect = card.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      const rotateX = (y / rect.height - 0.5) * -4;
+      const rotateY = (x / rect.width - 0.5) * 4;
+      card.style.transform =
+        `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
+    });
+
+    card.addEventListener("pointerleave", () => {
+      card.style.transform = "";
+    });
+  });
+};
+
+const getRankedWorks = () => {
+  const now = Date.now();
+  const ranked = [...works];
+
+  if (activeRank === "latest") {
+    return ranked.sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  const cutoff =
+    activeRank === "week"
+      ? now - 7 * oneDay
+      : activeRank === "month"
+        ? now - 30 * oneDay
+        : 0;
+
+  return ranked
+    .filter((work) => work.createdAt >= cutoff)
+    .sort((a, b) => b.likes - a.likes || b.views - a.views || b.createdAt - a.createdAt);
+};
+
+const buildCardMetaItems = (work) => {
+  const items = [
+    (work.devices || ["电脑端"]).join(" / "),
+    sanitizeMetaLabel(work.tool),
+    sanitizeMetaLabel(work.stack),
+    work.github ? "GitHub" : "",
+  ]
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+
+  return items.slice(0, 3);
+};
+
+const buildDetailMetaItems = (work) => {
+  const items = [
+    getCategoryText(work.category),
+    (work.devices || ["电脑端"]).join(" / "),
+    sanitizeMetaLabel(work.tool),
+    sanitizeMetaLabel(work.stack),
+    work.github ? "GitHub" : "",
+  ]
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+
+  return items.slice(0, 5);
+};
+
+const renderWorks = () => {
+  const visibleWorks = getRankedWorks().slice(0, 6);
+  const rankLabels = ["1", "2", "3"];
+
+  workGrid.innerHTML = visibleWorks
+    .map((work, index) => {
+      const author = getAuthorSnapshotForWork(work);
+      const meta = buildCardMetaItems(work);
+      return `
+        <article class="work-card" data-id="${work.id}" data-category="${escapeHTML(work.category)}" data-tilt>
+          <div class="rank-badge ${index < 3 ? `rank-featured rank-${index + 1}` : ""}">${rankLabels[index] || index + 1}</div>
+          <div class="work-visual ${work.cover ? "has-cover" : work.visual}">
+            ${work.cover ? `<img src="${work.cover}" alt="${escapeHTML(work.title)} 封面" />` : ""}
+          </div>
+          <div class="work-content">
+            <div class="work-topline">
+              <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
+              <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
+            </div>
+            <h3>${escapeHTML(work.title)}</h3>
+            <p>${escapeHTML(work.description)}</p>
+            <div class="work-meta">
+              ${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}
+            </div>
+            <div class="work-author-row">
+              <button type="button" class="author-chip" data-open-author="${work.id}">
+                <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
+                <span class="author-copy">
+                  <strong>${escapeHTML(author.displayName)}</strong>
+                  <small>${escapeHTML(author.handle)}</small>
+                </span>
+              </button>
+              <div class="work-stats-inline">
+                <span>${formatNumber(work.views)} 浏览</span>
+                <span>${formatNumber(work.likes)} 赞</span>
+              </div>
+            </div>
+            <div class="work-actions">
+              <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
+              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+              <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
+            </div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+
+  bindTilt(workGrid.querySelectorAll("[data-tilt]"));
+  updateStats();
+};
+
 const updateLoginState = () => {
   const user = getUser();
   if (user) {
-    migrateWorksAuthor();
+    syncAuthoredWorksWithProfile(user);
     openLoginButton.hidden = true;
     profileEntryButton.hidden = false;
     const { displayName, avatarUrl } = getProfilePresentation(user);
     const avatarEl = profileEntryButton.querySelector(".profile-entry-avatar");
     const labelEl = profileEntryButton.querySelector(".profile-entry-label");
     if (avatarEl) {
-      avatarEl.src = avatarUrl || "./logo-source.png";
+      avatarEl.src = avatarUrl || defaultAvatar;
       avatarEl.alt = displayName;
     }
     if (labelEl) labelEl.textContent = displayName;
@@ -335,81 +805,278 @@ const updateLoginState = () => {
   }
 };
 
-const closeProfile = () => {
-  profileOverlay.classList.remove("is-open");
-  profileOverlay.setAttribute("aria-hidden", "true");
-  pendingProfileAvatar = null;
+const openPanel = async () => {
+  await syncServerSession();
+  if (!getUser()) {
+    openLogin();
+    showToast("请先登录后再发布作品");
+    return;
+  }
+  closeLogin();
+  panel.classList.add("is-open");
+  panel.setAttribute("aria-hidden", "false");
+};
+
+const closePanel = () => {
+  panel.classList.remove("is-open");
+  panel.setAttribute("aria-hidden", "true");
+};
+
+const openCropper = () => {
+  coverCropper.classList.add("is-open");
+  coverCropper.setAttribute("aria-hidden", "false");
+};
+
+const closeCropper = () => {
+  coverCropper.classList.remove("is-open");
+  coverCropper.setAttribute("aria-hidden", "true");
+  cropPointerState = null;
+};
+
+const openLogin = () => {
+  loginOverlay.classList.add("is-open");
+  loginOverlay.setAttribute("aria-hidden", "false");
+};
+
+const closeLogin = () => {
+  loginOverlay.classList.remove("is-open");
+  loginOverlay.setAttribute("aria-hidden", "true");
+};
+
+const renderDetailGallery = () => {
+  const work = works.find((item) => item.id === activeDetailWorkId);
+  if (!work) return;
+
+  const photos = work.photos?.length ? work.photos : work.cover ? [work.cover] : [];
+  const hasPhotos = photos.length > 0;
+
+  detailCover.classList.toggle("is-empty", !hasPhotos);
+  detailImage.hidden = !hasPhotos;
+  detailGalleryEmpty.hidden = hasPhotos;
+
+  if (!hasPhotos) {
+    detailGalleryCounter.textContent = "0 / 0";
+    detailGalleryTrack.innerHTML = "";
+  } else {
+    activeDetailPhotoIndex = clamp(activeDetailPhotoIndex, 0, photos.length - 1);
+    detailImage.src = photos[activeDetailPhotoIndex];
+    detailImage.alt = `${work.title} 截图 ${activeDetailPhotoIndex + 1}`;
+    detailGalleryCounter.textContent = `${activeDetailPhotoIndex + 1} / ${photos.length}`;
+    detailGalleryTrack.innerHTML = photos
+      .map(
+        (photo, index) => `
+          <button
+            type="button"
+            class="detail-gallery-thumb ${index === activeDetailPhotoIndex ? "is-active" : ""}"
+            data-detail-thumb="${index}"
+            aria-label="查看第 ${index + 1} 张图"
+          >
+            <img src="${photo}" alt="" />
+          </button>
+        `,
+      )
+      .join("");
+  }
+
+  detailNavButtons.forEach((button) => {
+    button.disabled = photos.length < 2;
+  });
+};
+
+const openDetail = (id, options = {}) => {
+  const work = works.find((item) => item.id === id);
+  if (!work) return;
+
+  activeDetailWorkId = work.id;
+  activeDetailPhotoIndex = clamp(options.photoIndex ?? 0, 0, Math.max(0, (work.photos?.length || 1) - 1));
+
+  const author = getAuthorSnapshotForWork(work);
+  detailType.textContent = work.type;
+  detailTitle.textContent = work.title;
+  detailDescription.textContent = work.description;
+  detailAuthorCard.innerHTML = `
+    <button type="button" class="detail-author-button" data-open-author="${work.id}">
+      <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
+      <span class="author-copy">
+        <strong>${escapeHTML(author.displayName)}</strong>
+        <small>${escapeHTML(author.handle)} · 点击进入主页</small>
+      </span>
+    </button>
+  `;
+  detailMeta.innerHTML = buildDetailMetaItems(work)
+    .map((item) => `<span>${escapeHTML(item)}</span>`)
+    .join("");
+  detailLikes.textContent = formatNumber(work.likes);
+  detailViews.textContent = formatNumber(work.views);
+  detailDate.textContent = formatDate(work.createdAt);
+  detailActions.innerHTML = `
+    <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
+    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+    <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
+  `;
+
+  renderDetailGallery();
+  detailOverlay.classList.add("is-open");
+  detailOverlay.setAttribute("aria-hidden", "false");
+};
+
+const closeDetail = () => {
+  detailOverlay.classList.remove("is-open");
+  detailOverlay.setAttribute("aria-hidden", "true");
+  activeDetailWorkId = "";
+  activeDetailPhotoIndex = 0;
+};
+
+const stepDetailGallery = (direction) => {
+  const work = works.find((item) => item.id === activeDetailWorkId);
+  if (!work) return;
+  const photos = work.photos?.length ? work.photos : work.cover ? [work.cover] : [];
+  if (photos.length < 2) return;
+  activeDetailPhotoIndex = (activeDetailPhotoIndex + direction + photos.length) % photos.length;
+  renderDetailGallery();
+};
+
+const getWorksByAuthor = (context) => {
+  if (!context) return [];
+  return works
+    .filter((work) => {
+      if (context.id && work.authorId === context.id) return true;
+      if (!context.id && context.handle && work.authorHandle === context.handle) return true;
+      return work.authorName === context.displayName;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt);
+};
+
+const buildProfileContext = ({ work } = {}) => {
+  const currentUser = getUser();
+  if (work) {
+    const author = getAuthorSnapshotForWork(work);
+    const editable = Boolean(currentUser && work.authorId && currentUser.id === work.authorId);
+    return {
+      ...author,
+      email: editable ? currentUser.email || "" : author.handle,
+      intro: editable
+        ? "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。"
+        : author.bio,
+      footerNote: editable
+        ? "改完资料会同步到你发布的作品卡片和详情页。"
+        : "这个主页只读，重点是让访客继续逛这位创作者的作品。",
+      editable,
+      works: getWorksByAuthor(author),
+    };
+  }
+
+  if (!currentUser) return null;
+  const author = buildCurrentUserAuthorSnapshot(currentUser);
+  return {
+    ...author,
+    email: currentUser.email || "",
+    intro: "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。",
+    footerNote: "改完资料会同步到你发布的作品卡片和详情页。",
+    editable: true,
+    works: works
+      .filter((item) => item.isUserCreated && item.authorId === currentUser.id)
+      .sort((a, b) => b.createdAt - a.createdAt),
+  };
 };
 
 const renderProfilePanel = () => {
-  const user = getUser();
-  if (!user || !profileWorksGrid) return;
+  if (!activeProfileContext || !profileWorksGrid) return;
 
-  const { displayName, avatarUrl } = getProfilePresentation(user);
-  profileDisplayNameInput.value = displayName;
-  profileEmailLine.textContent = user.email || "";
-  profileAvatarPreview.src = pendingProfileAvatar || avatarUrl || "./logo-source.png";
-  profileAvatarPreview.alt = displayName;
+  const context = activeProfileContext;
+  const list = context.works || [];
+  const viewsSum = list.reduce((sum, work) => sum + (work.views || 0), 0);
+  const likesSum = list.reduce((sum, work) => sum + (work.likes || 0), 0);
 
-  const list = getUserWorks(user.id).sort((a, b) => b.createdAt - a.createdAt);
-  const viewsSum = list.reduce((s, w) => s + (w.views || 0), 0);
-  const likesSum = list.reduce((s, w) => s + (w.likes || 0), 0);
+  profileShell.classList.toggle("is-readonly", !context.editable);
+  profileDisplayNameInput.value = context.displayName;
+  profileDisplayNameInput.readOnly = !context.editable;
+  profileAvatarInput.disabled = !context.editable;
+  profileResetAvatarButton.hidden = !context.editable;
+  profileSaveButton.hidden = !context.editable;
+  profileLogoutButton.hidden = !context.editable;
+  profileModeLine.textContent = context.editable ? "我的主页" : "创作者";
+  profileEmailLine.textContent = context.editable ? context.email : context.handle;
+  profileIntroLine.textContent = context.intro;
+  profileFooterNote.textContent = context.footerNote;
+  profileAvatarPreview.src = pendingProfileAvatar || context.avatarUrl || defaultAvatar;
+  profileAvatarPreview.alt = context.displayName;
+
   profileStatWorksEl.textContent = list.length;
   profileStatViewsEl.textContent = formatNumber(viewsSum);
   profileStatLikesEl.textContent = formatNumber(likesSum);
 
   profileWorksGrid.innerHTML = list.length
     ? list
-        .map(
-          (work) => `
-        <button type="button" class="profile-work-tile" data-open-work="${work.id}">
-          <div class="profile-work-tile-visual ${work.cover ? "has-cover" : work.visual}">
-            ${work.cover ? `<img src="${work.cover}" alt="" />` : ""}
-          </div>
-          <div class="profile-work-tile-body">
-            <p class="profile-work-tile-title">${escapeHTML(work.title)}</p>
-            <div class="profile-work-tile-meta">
-              <span>${formatNumber(work.views)} 访问</span>
-              <span>${formatNumber(work.likes)} 赞</span>
+        .map((work) => `
+          <button type="button" class="profile-work-tile" data-open-work="${work.id}">
+            <div class="profile-work-tile-visual ${work.cover ? "has-cover" : work.visual}">
+              ${work.cover ? `<img src="${work.cover}" alt="" />` : ""}
             </div>
-          </div>
-        </button>
-      `,
-        )
+            <div class="profile-work-tile-body">
+              <p class="profile-work-tile-title">${escapeHTML(work.title)}</p>
+              <div class="profile-work-tile-meta">
+                <span>${formatNumber(work.views)} 浏览</span>
+                <span>${formatNumber(work.likes)} 赞</span>
+                <span>${Math.max(work.photos?.length || 0, work.cover ? 1 : 0)} 张图</span>
+              </div>
+            </div>
+          </button>
+        `)
         .join("")
     : `<div class="profile-empty">还没有作品。去发布一条，它会出现在这里。</div>`;
+};
 
-  profileWorksGrid.querySelectorAll("[data-open-work]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      closeProfile();
-      openDetail(btn.dataset.openWork);
-    });
-  });
+const closeProfile = () => {
+  profileOverlay.classList.remove("is-open");
+  profileOverlay.setAttribute("aria-hidden", "true");
+  activeProfileContext = null;
+  pendingProfileAvatar = null;
 };
 
 const openProfile = async (options = {}) => {
-  const fromLoginNav = options.fromLoginNav === true;
+  const { fromLoginNav = false, workId = "" } = options;
+
+  if (workId) {
+    const work = works.find((item) => item.id === workId);
+    if (!work) return;
+    activeProfileContext = buildProfileContext({ work });
+    pendingProfileAvatar = null;
+    renderProfilePanel();
+    profileOverlay.classList.add("is-open");
+    profileOverlay.setAttribute("aria-hidden", "false");
+    return;
+  }
+
   await syncServerSession();
   if (!getUser()) {
     openLogin();
     if (!fromLoginNav) showToast("需要先登录才能打开个人主页");
     return;
   }
+
   closeLogin();
+  activeProfileContext = buildProfileContext();
   pendingProfileAvatar = null;
   renderProfilePanel();
   profileOverlay.classList.add("is-open");
   profileOverlay.setAttribute("aria-hidden", "false");
 };
 
-let vibyBackend = {
-  checked: false,
-  apiOnline: false,
-  githubOAuthReady: false,
-  problem: null,
+const readDocumentCookie = (name) => {
+  const needle = `; ${name}=`;
+  const all = `; ${document.cookie}`;
+  const index = all.indexOf(needle);
+  if (index === -1) return "";
+  const start = index + needle.length;
+  const end = all.indexOf("; ", start);
+  const chunk = end === -1 ? all.slice(start) : all.slice(start, end);
+  try {
+    return decodeURIComponent(chunk) || "";
+  } catch {
+    return chunk;
+  }
 };
-
-let backendProbePromise = null;
 
 const probeBackend = async () => {
   if (window.location.protocol === "file:") {
@@ -448,22 +1115,6 @@ const ensureBackendProbe = () => {
   return backendProbePromise;
 };
 
-/** 读取非 HttpOnly 的 viby_session_js（或同站点其它 Cookie） */
-const readDocumentCookie = (name) => {
-  const needle = `; ${name}=`;
-  const all = `; ${document.cookie}`;
-  const i = all.indexOf(needle);
-  if (i === -1) return "";
-  const start = i + needle.length;
-  const end = all.indexOf("; ", start);
-  const chunk = end === -1 ? all.slice(start) : all.slice(start, end);
-  try {
-    return decodeURIComponent(chunk) || "";
-  } catch {
-    return chunk;
-  }
-};
-
 const syncServerSession = async () => {
   try {
     const jsTok = readDocumentCookie("viby_session_js");
@@ -487,8 +1138,7 @@ const syncServerSession = async () => {
       return null;
     }
 
-    if (!response.ok) return null;
-    if (!data.user) return null;
+    if (!response.ok || !data.user) return null;
 
     localStorage.setItem(
       authKey,
@@ -519,7 +1169,9 @@ const handleAuthRedirectMessage = () => {
       showToast("GitHub 已授权，但未建立会话。请检查 Cookie、密钥是否与 GitHub 一致，或刷新后重试");
     }
   } else if (result === "not_configured") {
-    showToast("GitHub 未就绪：在项目根目录创建 .env，写入 GITHUB_CLIENT_ID 与 GITHUB_CLIENT_SECRET，保存后重新执行 npm start");
+    showToast(
+      "GitHub 未就绪：在项目根目录创建 .env，写入 GITHUB_CLIENT_ID 与 GITHUB_CLIENT_SECRET，保存后重新执行 npm start",
+    );
   } else {
     const glErr = params.get("github_err") || "";
     const origin = window.location.origin;
@@ -550,288 +1202,189 @@ const handleAuthRedirectMessage = () => {
   window.history.replaceState({}, "", nextUrl);
 };
 
-const getVisualClass = (index) => ["visual-one", "visual-two", "visual-three"][index % 3];
-
-const normalizeWork = (work, index = 0) => {
-  if (!work || typeof work !== "object") return null;
-  const cat = typeof work.category === "string" && work.category ? work.category : "website";
-  return {
-    ...work,
-    category: cat,
-    cover: work.cover || "",
-    photos: work.photos || (work.cover ? [work.cover] : []),
-    tool: work.tool === "Vibe coding" ? "" : work.tool,
-    createdAt: work.createdAt || Date.now() - index * oneDay,
-    likes: Number.isFinite(work.likes) ? work.likes : work.saves || 0,
-    likedBy: work.likedBy || [],
-    views: work.views || 0,
-    visual: work.visual || getVisualClass(index),
-    authorId: work.authorId || "",
-  };
-};
-
-const applyInteractions = () => {
-  const interactions = getInteractions();
-  works = works.map((work) => {
-    const likedBy = interactions[work.id]?.likedBy || work.likedBy || [];
-    const extraLikes = Math.max(0, likedBy.length - (work.likedBy?.length || 0));
-    return {
-      ...work,
-      likedBy,
-      likes: work.likes + extraLikes,
-    };
-  });
-};
-
-const saveUserWorks = () => {
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify(works.filter((work) => work.isUserCreated)),
-  );
-};
-
-const formatNumber = (value) => {
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
-  }
-
-  return String(value);
-};
-
-const formatDate = (timestamp) =>
-  new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-  }).format(new Date(timestamp));
-
-const showToast = (message) => {
-  toast.textContent = message;
-  toast.classList.add("is-visible");
-  window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => {
-    toast.classList.remove("is-visible");
-  }, 2200);
-};
-
-const getTypeLabel = (category) => {
-  const c = String(category || "");
-  if (c.includes("website")) return "Website";
-  if (c.includes("app")) return "App";
-  if (c.includes("open")) return "Open source";
-  if (c.includes("ai")) return "AI app";
-  return "Tool";
-};
-
-const getCategoryText = (category) =>
-  String(category || "")
-    .replace("website", "网站")
-    .replace("app", "APP")
-    .replace("open", "开源")
-    .replace("tool", "小工具")
-    .replace("ai", "AI 应用");
-
-const getSelectedDevices = () => {
-  const devices = [...submitForm.querySelectorAll('[name="devices"]:checked')].map(
-    (input) => input.value,
-  );
-  return devices.length ? devices : ["电脑端"];
-};
-
-const updateStats = () => {
-  statWorks.textContent = works.length;
-  statViews.textContent = formatNumber(works.reduce((sum, work) => sum + work.views, 0));
-  statLikes.textContent = formatNumber(works.reduce((sum, work) => sum + work.likes, 0));
-};
-
-const likeWork = (id) => {
-  const user = getUser();
-  if (!user) {
-    openLogin();
-    showToast("登录后才能点赞");
-    return false;
-  }
-
-  const work = works.find((item) => item.id === id);
-  if (!work) return false;
-
-  work.likedBy = work.likedBy || [];
-  if (work.likedBy.includes(user.id)) {
-    showToast("你已经给这个作品点过赞了");
-    return false;
-  }
-
-  work.likedBy.push(user.id);
-  work.likes += 1;
-
-  const interactions = getInteractions();
-  interactions[id] = { ...(interactions[id] || {}), likedBy: work.likedBy };
-  saveInteractions(interactions);
-  saveUserWorks();
-  showToast("已点赞，榜单会实时更新");
-  return true;
-};
-
-const bindTilt = (cards) => {
-  cards.forEach((card) => {
-    card.addEventListener("pointermove", (event) => {
-      const rect = card.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      const rotateX = (y / rect.height - 0.5) * -5;
-      const rotateY = (x / rect.width - 0.5) * 5;
-
-      card.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
+const readImageFile = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const image = new Image();
+      image.addEventListener("load", () => {
+        resolve({
+          src: reader.result,
+          width: image.width,
+          height: image.height,
+          scale: 1,
+          minScale: 1,
+          maxScale: 3,
+          offsetX: 0,
+          offsetY: 0,
+        });
+      });
+      image.addEventListener("error", reject);
+      image.src = reader.result;
     });
-
-    card.addEventListener("pointerleave", () => {
-      card.style.transform = "";
-    });
+    reader.addEventListener("error", reject);
+    reader.readAsDataURL(file);
   });
+
+const getCropFrameSize = () => ({
+  width: Math.max(coverFrame.clientWidth, 1),
+  height: Math.max(coverFrame.clientHeight, 1),
+});
+
+const centerSelectedCover = () => {
+  if (!selectedCover) return;
+  const frame = getCropFrameSize();
+  const scaledWidth = selectedCover.width * selectedCover.scale;
+  const scaledHeight = selectedCover.height * selectedCover.scale;
+  selectedCover.offsetX = (frame.width - scaledWidth) / 2;
+  selectedCover.offsetY = (frame.height - scaledHeight) / 2;
 };
 
-const getRankedWorks = () => {
-  const now = Date.now();
-  const ranked = [...works];
+const clampSelectedCover = () => {
+  if (!selectedCover) return;
+  const frame = getCropFrameSize();
+  const scaledWidth = selectedCover.width * selectedCover.scale;
+  const scaledHeight = selectedCover.height * selectedCover.scale;
 
-  if (activeRank === "latest") {
-    return ranked.sort((a, b) => b.createdAt - a.createdAt);
+  if (scaledWidth <= frame.width) {
+    selectedCover.offsetX = (frame.width - scaledWidth) / 2;
+  } else {
+    selectedCover.offsetX = clamp(selectedCover.offsetX, frame.width - scaledWidth, 0);
   }
 
-  const cutoff =
-    activeRank === "week"
-      ? now - 7 * oneDay
-      : activeRank === "month"
-        ? now - 30 * oneDay
-        : 0;
-
-  return ranked
-    .filter((work) => work.createdAt >= cutoff)
-    .sort((a, b) => b.likes - a.likes || b.views - a.views || b.createdAt - a.createdAt);
+  if (scaledHeight <= frame.height) {
+    selectedCover.offsetY = (frame.height - scaledHeight) / 2;
+  } else {
+    selectedCover.offsetY = clamp(selectedCover.offsetY, frame.height - scaledHeight, 0);
+  }
 };
 
-const renderWorks = () => {
-  const visibleWorks = getRankedWorks().slice(0, 6);
-  const rankLabels = ["1", "2", "3"];
+const syncCropZoomUi = () => {
+  if (!selectedCover) return;
+  const maxPercent = Math.max(160, Math.round((selectedCover.maxScale / selectedCover.minScale) * 100));
+  cropZoom.max = String(maxPercent);
+  cropZoom.value = String(Math.round((selectedCover.scale / selectedCover.minScale) * 100));
+  cropZoomValue.textContent = `${cropZoom.value}%`;
+};
 
-  workGrid.innerHTML = visibleWorks
+const updateCropTransform = () => {
+  if (!selectedCover) return;
+  coverPreview.style.width = `${selectedCover.width}px`;
+  coverPreview.style.height = `${selectedCover.height}px`;
+  coverPreview.style.transformOrigin = "top left";
+  coverPreview.style.transform = `translate(${selectedCover.offsetX}px, ${selectedCover.offsetY}px) scale(${selectedCover.scale})`;
+  syncCropZoomUi();
+};
+
+const ensureCropMetrics = (resetPosition = false) => {
+  if (!selectedCover) return;
+  const frame = getCropFrameSize();
+  const nextMinScale = Math.max(frame.width / selectedCover.width, frame.height / selectedCover.height);
+  const prevMinScale = selectedCover.minScale || nextMinScale;
+  const ratio = selectedCover.scale ? selectedCover.scale / prevMinScale : 1.06;
+  selectedCover.minScale = nextMinScale;
+  selectedCover.maxScale = nextMinScale * 3.2;
+  selectedCover.scale = clamp(nextMinScale * ratio, nextMinScale, selectedCover.maxScale);
+  if (resetPosition || !Number.isFinite(selectedCover.offsetX) || !Number.isFinite(selectedCover.offsetY)) {
+    centerSelectedCover();
+  }
+  clampSelectedCover();
+  updateCropTransform();
+};
+
+const zoomSelectedCover = (nextScale, clientX, clientY) => {
+  if (!selectedCover) return;
+  const frameRect = coverFrame.getBoundingClientRect();
+  const anchorX = clientX ?? frameRect.left + frameRect.width / 2;
+  const anchorY = clientY ?? frameRect.top + frameRect.height / 2;
+  const previousScale = selectedCover.scale;
+  const localX = anchorX - frameRect.left;
+  const localY = anchorY - frameRect.top;
+  const imageX = (localX - selectedCover.offsetX) / previousScale;
+  const imageY = (localY - selectedCover.offsetY) / previousScale;
+
+  selectedCover.scale = clamp(nextScale, selectedCover.minScale, selectedCover.maxScale);
+  selectedCover.offsetX = localX - imageX * selectedCover.scale;
+  selectedCover.offsetY = localY - imageY * selectedCover.scale;
+  clampSelectedCover();
+  updateCropTransform();
+};
+
+const renderCoverThumbs = () => {
+  const count = croppedCovers.length;
+  coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
+  coverHelperText.textContent = count
+    ? "点击“重裁”可以重新调整取景；点“设为封面”可以决定卡片首图。"
+    : "建议第一张放最能代表作品的页面，最多 5 张，别人看详情时会按顺序浏览。";
+  coverClearButton.hidden = count === 0;
+
+  if (count) {
+    coverThumb.src = croppedCovers[0];
+    coverThumb.hidden = false;
+    pickCoverButton.classList.add("has-image");
+  } else {
+    coverThumb.hidden = true;
+    coverThumb.removeAttribute("src");
+    pickCoverButton.classList.remove("has-image");
+  }
+
+  coverThumbs.innerHTML = croppedCovers
     .map(
-      (work, index) => `
-        <article class="work-card" data-id="${work.id}" data-category="${work.category}" data-tilt>
-          <div class="rank-badge ${index < 3 ? `rank-featured rank-${index + 1}` : ""}">${rankLabels[index] || index + 1}</div>
-          <div class="work-visual ${work.cover ? "has-cover" : work.visual}">
-            ${work.cover ? `<img src="${work.cover}" alt="${escapeHTML(work.title)} 封面" />` : ""}
-          </div>
-          <div class="work-content">
-            <h3>${escapeHTML(work.title)}</h3>
-            <p>${escapeHTML(work.description)}</p>
-            <div class="work-meta">
-              <span>${escapeHTML(getCategoryText(work.category))}</span>
-              <span>${escapeHTML((work.devices || ["电脑端"]).join(" / "))}</span>
+      (src, index) => `
+        <div class="thumb-card ${index === 0 ? "is-cover" : ""}">
+          <button class="thumb-preview" type="button" data-thumb-edit="${index}">
+            <img src="${src}" alt="作品截图 ${index + 1}" />
+            <span class="thumb-badge">${index === 0 ? "封面" : `图 ${index + 1}`}</span>
+          </button>
+          <div class="thumb-meta">
+            <span>${index === 0 ? "卡片首图" : `详情第 ${index + 1} 张`}</span>
+            <div class="thumb-mini-actions">
+              <button class="thumb-action" type="button" data-thumb-edit="${index}">重裁</button>
+              ${
+                index === 0
+                  ? `<button class="thumb-action is-current" type="button" disabled>当前封面</button>`
+                  : `<button class="thumb-action" type="button" data-thumb-cover="${index}">设为封面</button>`
+              }
+              <button class="thumb-action destructive" type="button" data-thumb-remove="${index}">删除</button>
             </div>
-            <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
-              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
-              <button type="button" data-like="${work.id}">点赞 ${work.likes}</button>
-            </div>
           </div>
-        </article>
+        </div>
       `,
     )
     .join("");
-
-  bindTilt(workGrid.querySelectorAll("[data-tilt]"));
-  updateStats();
 };
 
-const openPanel = async () => {
-  await syncServerSession();
-  if (!getUser()) {
-    openLogin();
-    showToast("请先登录后再发布作品");
+const openCropAtIndex = () => {
+  selectedCover = cropQueue[cropIndex];
+  if (!selectedCover) {
+    editingCoverIndex = null;
+    closeCropper();
+    renderCoverThumbs();
+    showToast(`${croppedCovers.length} 张截图已准备好`);
     return;
   }
-  closeLogin();
-  panel.classList.add("is-open");
-  panel.setAttribute("aria-hidden", "false");
+
+  coverPreview.src = selectedCover.src;
+  cropStageLabel.textContent = editingCoverIndex !== null ? "重新裁剪" : "封面裁剪";
+  cropCounter.textContent =
+    editingCoverIndex !== null
+      ? `编辑第 ${editingCoverIndex + 1} 张`
+      : `${cropIndex + 1} / ${cropQueue.length}`;
+  confirmCropButton.textContent =
+    editingCoverIndex !== null ? "保存这张截图" : `确认这一张 ${cropIndex + 1}/${cropQueue.length}`;
+  openCropper();
+  requestAnimationFrame(() => {
+    ensureCropMetrics(true);
+  });
 };
 
-const closePanel = () => {
-  panel.classList.remove("is-open");
-  panel.setAttribute("aria-hidden", "true");
-};
-
-const openCropper = () => {
-  coverCropper.classList.add("is-open");
-  coverCropper.setAttribute("aria-hidden", "false");
-};
-
-const closeCropper = () => {
-  coverCropper.classList.remove("is-open");
-  coverCropper.setAttribute("aria-hidden", "true");
-};
-
-const openLogin = () => {
-  loginOverlay.classList.add("is-open");
-  loginOverlay.setAttribute("aria-hidden", "false");
-};
-
-const closeLogin = () => {
-  loginOverlay.classList.remove("is-open");
-  loginOverlay.setAttribute("aria-hidden", "true");
-};
-
-const openDetail = (id) => {
-  const work = works.find((item) => item.id === id);
-  if (!work) return;
-
-  const photos = work.photos?.length ? work.photos : work.cover ? [work.cover] : [];
-  detailCover.className = `detail-cover ${photos.length ? "has-cover" : work.visual}`;
-  detailCover.innerHTML = photos.length
-    ? `
-      <div class="detail-gallery photo-${Math.min(photos.length, 5)}">
-        ${photos.map((photo, index) => `<img src="${photo}" alt="${escapeHTML(work.title)} 截图 ${index + 1}" />`).join("")}
-      </div>
-    `
-    : "";
-  detailType.textContent = work.type;
-  detailTitle.textContent = work.title;
-  detailDescription.textContent = work.description;
-  detailMeta.innerHTML = [
-    work.tool,
-    work.stack || "Live",
-    (work.devices || ["电脑端"]).join(" / "),
-    getCategoryText(work.category),
-  ]
-    .filter(Boolean)
-    .map((item) => `<span>${escapeHTML(item)}</span>`)
-    .join("");
-  detailLikes.textContent = work.likes;
-  detailViews.textContent = formatNumber(work.views);
-  detailDate.textContent = formatDate(work.createdAt);
-  detailActions.innerHTML = `
-    <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
-    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
-    <button type="button" data-like="${work.id}">点赞 ${work.likes}</button>
-  `;
-
-  detailOverlay.classList.add("is-open");
-  detailOverlay.setAttribute("aria-hidden", "false");
-};
-
-const closeDetail = () => {
-  detailOverlay.classList.remove("is-open");
-  detailOverlay.setAttribute("aria-hidden", "true");
-};
-
-const updateCoverPreview = () => {
-  if (!selectedCover) return "";
-  coverPreview.style.width = "100%";
-  coverPreview.style.height = "100%";
-  coverPreview.style.transform = "";
-  cropBox.style.left = `${selectedCover.box?.x ?? 12}%`;
-  cropBox.style.top = `${selectedCover.box?.y ?? 18}%`;
-  cropBox.style.width = `${selectedCover.box?.w ?? 76}%`;
-  cropBox.style.height = `${selectedCover.box?.h ?? 64}%`;
+const cancelCropSession = (notify = true) => {
+  cropQueue = [];
+  cropIndex = 0;
+  editingCoverIndex = null;
+  selectedCover = null;
+  closeCropper();
+  if (notify) showToast("已退出裁剪，之前保存的截图会继续保留");
 };
 
 const createCroppedCover = async () => {
@@ -840,40 +1393,31 @@ const createCroppedCover = async () => {
   image.src = selectedCover.src;
   await image.decode();
 
+  const frame = getCropFrameSize();
+  const scale = selectedCover.scale;
+  const sx = clamp((-selectedCover.offsetX) / scale, 0, image.width);
+  const sy = clamp((-selectedCover.offsetY) / scale, 0, image.height);
+  const sw = clamp(frame.width / scale, 1, image.width - sx);
+  const sh = clamp(frame.height / scale, 1, image.height - sy);
+
   const canvas = document.createElement("canvas");
-  canvas.width = 1200;
-  canvas.height = 675;
+  canvas.width = 1600;
+  canvas.height = 900;
   const context = canvas.getContext("2d");
-  const box = selectedCover.box || { x: 0, y: 0, w: 100, h: 100 };
-  const imageRatio = image.width / image.height;
-  const frameRatio = coverPreview.parentElement.clientWidth / coverPreview.parentElement.clientHeight;
-  let visibleWidth = image.width;
-  let visibleHeight = image.height;
-  let offsetX = 0;
-  let offsetY = 0;
-
-  if (imageRatio > frameRatio) {
-    visibleHeight = image.height;
-    visibleWidth = image.height * frameRatio;
-    offsetX = (image.width - visibleWidth) / 2;
-  } else {
-    visibleWidth = image.width;
-    visibleHeight = image.width / frameRatio;
-    offsetY = (image.height - visibleHeight) / 2;
-  }
-
-  const sx = offsetX + (box.x / 100) * visibleWidth;
-  const sy = offsetY + (box.y / 100) * visibleHeight;
-  const sw = (box.w / 100) * visibleWidth;
-  const sh = (box.h / 100) * visibleHeight;
-
   context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.86);
+  return canvas.toDataURL("image/jpeg", 0.9);
 };
 
 window.addEventListener("pointermove", (event) => {
   root.style.setProperty("--spot-x", `${event.clientX}px`);
   root.style.setProperty("--spot-y", `${event.clientY}px`);
+  if (heroTitle) {
+    const rect = heroTitle.getBoundingClientRect();
+    const relativeX = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+    const relativeY = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+    heroTitle.style.setProperty("--hero-glow-x", `${relativeX}%`);
+    heroTitle.style.setProperty("--hero-glow-y", `${relativeY}%`);
+  }
 });
 
 openButtons.forEach((button) => button.addEventListener("click", () => void openPanel()));
@@ -885,27 +1429,31 @@ panel.addEventListener("click", (event) => {
 
 openLoginButton.addEventListener("click", () => void openProfile({ fromLoginNav: true }));
 closeLoginButton.addEventListener("click", closeLogin);
+
 loginOverlay.addEventListener("click", (event) => {
   if (event.target === loginOverlay) closeLogin();
 });
 
 sendCodeButton.addEventListener("click", () => {
-  const email = new FormData(loginForm).get("email").trim().toLowerCase();
+  const email = safeTrim(new FormData(loginForm).get("email")).toLowerCase();
   if (!email) {
     showToast("先填写邮箱");
     return;
   }
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
-  localStorage.setItem(emailCodeKey, JSON.stringify({ email, code, expiresAt: Date.now() + 10 * 60 * 1000 }));
+  localStorage.setItem(
+    emailCodeKey,
+    JSON.stringify({ email, code, expiresAt: Date.now() + 10 * 60 * 1000 }),
+  );
   showToast(`验证码已发送：${code}`);
 });
 
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(loginForm);
-  const email = data.get("email").trim().toLowerCase();
-  const code = data.get("code").trim();
+  const email = safeTrim(data.get("email")).toLowerCase();
+  const code = safeTrim(data.get("code"));
   if (!email || !code) return;
 
   const storedCode = JSON.parse(localStorage.getItem(emailCodeKey) || "{}");
@@ -916,13 +1464,8 @@ loginForm.addEventListener("submit", (event) => {
 
   const accounts = getAccounts();
   let account = accounts.find((item) => item.email === email);
-
   if (!account) {
-    account = {
-      id: `user-${Date.now()}`,
-      email,
-      createdAt: Date.now(),
-    };
+    account = { id: `user-${Date.now()}`, email, createdAt: Date.now() };
     accounts.push(account);
     saveAccounts(accounts);
   }
@@ -943,7 +1486,9 @@ githubLoginButton.addEventListener("click", async () => {
   }
 
   if (!vibyBackend.apiOnline) {
-    showToast("当前页面不是由 Viby 启动的服务（常见：用了 python -m http.server）。请在项目目录执行 npm start 后再点 GitHub 登录");
+    showToast(
+      "当前页面不是由 Viby 启动的服务（常见：用了 python -m http.server）。请在项目目录执行 npm start 后再点 GitHub 登录",
+    );
     return;
   }
 
@@ -957,6 +1502,7 @@ githubLoginButton.addEventListener("click", async () => {
 
 profileEntryButton.addEventListener("click", () => void openProfile());
 closeProfileButton.addEventListener("click", closeProfile);
+
 profileOverlay.addEventListener("click", (event) => {
   if (event.target === profileOverlay) closeProfile();
 });
@@ -978,20 +1524,31 @@ profileAvatarInput.addEventListener("change", async (event) => {
   profileAvatarInput.value = "";
 });
 
+profileWorksGrid.addEventListener("click", (event) => {
+  const tile = event.target.closest("[data-open-work]");
+  if (!tile) return;
+  closeProfile();
+  openDetail(tile.dataset.openWork);
+});
+
 profileSaveButton.addEventListener("click", () => {
   const user = getUser();
   if (!user) return;
-  const name = profileDisplayNameInput.value.trim();
+  const name = safeTrim(profileDisplayNameInput.value);
   if (!name) {
     showToast("请填写展示名称");
     return;
   }
+
   const patch = { displayName: name };
   if (pendingProfileAvatar) patch.avatarDataUrl = pendingProfileAvatar;
   setProfilePrefs(user.id, patch);
   pendingProfileAvatar = null;
+  syncAuthoredWorksWithProfile(user);
   updateLoginState();
+  activeProfileContext = buildProfileContext();
   renderProfilePanel();
+  renderWorks();
   showToast("资料已保存");
 });
 
@@ -1008,8 +1565,11 @@ profileResetAvatarButton.addEventListener("click", () => {
   map[user.id] = prefs;
   localStorage.setItem(profilePrefsKey, JSON.stringify(map));
   pendingProfileAvatar = null;
+  syncAuthoredWorksWithProfile(user);
   updateLoginState();
+  activeProfileContext = buildProfileContext();
   renderProfilePanel();
+  renderWorks();
   showToast("已恢复默认头像");
 });
 
@@ -1017,7 +1577,7 @@ profileLogoutButton.addEventListener("click", async () => {
   try {
     await fetch("/api/logout", { method: "POST", credentials: "include", cache: "no-store" });
   } catch {
-    /* static 托管或网络异常时仍清理本地态 */
+    /* 网络异常时仍清理本地态 */
   }
   localStorage.removeItem(authKey);
   document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
@@ -1032,18 +1592,38 @@ detailOverlay.addEventListener("click", (event) => {
   if (event.target === detailOverlay) closeDetail();
 });
 
-window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closePanel();
-    closeDetail();
-    closeCropper();
-    closeLogin();
-    closeProfile();
+detailNavButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    stepDetailGallery(button.dataset.detailNav === "next" ? 1 : -1);
+  });
+});
+
+detailGalleryTrack.addEventListener("click", (event) => {
+  const thumb = event.target.closest("[data-detail-thumb]");
+  if (!thumb) return;
+  activeDetailPhotoIndex = Number(thumb.dataset.detailThumb);
+  renderDetailGallery();
+});
+
+detailAuthorCard.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-open-author]");
+  if (!button) return;
+  closeDetail();
+  void openProfile({ workId: button.dataset.openAuthor });
+});
+
+detailActions.addEventListener("click", (event) => {
+  const visitLink = event.target.closest("[data-visit]");
+  const likeButton = event.target.closest("[data-like]");
+
+  if (visitLink) {
+    incrementViews(visitLink.dataset.visit);
+    return;
   }
 
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-    event.preventDefault();
-    void openPanel();
+  if (likeButton && likeWork(likeButton.dataset.like)) {
+    openDetail(likeButton.dataset.like, { photoIndex: activeDetailPhotoIndex });
+    renderWorks();
   }
 });
 
@@ -1059,113 +1639,26 @@ rankButtons.forEach((button) => {
 workGrid.addEventListener("click", (event) => {
   const visitLink = event.target.closest("[data-visit]");
   const likeButton = event.target.closest("[data-like]");
+  const authorButton = event.target.closest("[data-open-author]");
   const card = event.target.closest(".work-card");
 
   if (visitLink) {
-    const work = works.find((item) => item.id === visitLink.dataset.visit);
-    if (work) {
-      work.views += 1;
-      saveUserWorks();
-      updateStats();
-    }
+    incrementViews(visitLink.dataset.visit);
     return;
   }
 
   if (likeButton) {
-    if (likeWork(likeButton.dataset.like)) {
-      renderWorks();
-    }
+    if (likeWork(likeButton.dataset.like)) renderWorks();
+    return;
+  }
+
+  if (authorButton) {
+    void openProfile({ workId: authorButton.dataset.openAuthor });
     return;
   }
 
   if (card) openDetail(card.dataset.id);
 });
-
-detailActions.addEventListener("click", (event) => {
-  const visitLink = event.target.closest("[data-visit]");
-  const likeButton = event.target.closest("[data-like]");
-
-  if (visitLink) {
-    const work = works.find((item) => item.id === visitLink.dataset.visit);
-    if (work) {
-      work.views += 1;
-      saveUserWorks();
-      updateStats();
-    }
-    return;
-  }
-
-  if (likeButton) {
-    if (likeWork(likeButton.dataset.like)) {
-      const work = works.find((item) => item.id === likeButton.dataset.like);
-      openDetail(work.id);
-      renderWorks();
-    }
-  }
-});
-
-const readImageFile = (file) =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      const image = new Image();
-      image.addEventListener("load", () => {
-        resolve({
-          src: reader.result,
-          width: image.width,
-          height: image.height,
-          box: { x: 0, y: 0, w: 100, h: 100 },
-        });
-      });
-      image.addEventListener("error", reject);
-      image.src = reader.result;
-    });
-    reader.addEventListener("error", reject);
-    reader.readAsDataURL(file);
-  });
-
-const renderCoverThumbs = () => {
-  coverThumbs.innerHTML = croppedCovers
-    .map(
-      (src, index) => `
-        <button class="thumb-item ${index === 0 ? "is-cover" : ""}" type="button" draggable="true" data-index="${index}" title="${index === 0 ? "封面" : "拖动调整顺序"}">
-          <img src="${src}" alt="作品截图 ${index + 1}" />
-          ${index === 0 ? "<span>封面</span>" : ""}
-        </button>
-      `,
-    )
-    .join("");
-
-  if (croppedCovers.length && croppedCovers.length < 5) {
-    coverThumbs.insertAdjacentHTML("beforeend", `<label class="thumb-add" for="coverInput">+</label>`);
-  }
-
-  if (croppedCovers.length) {
-    coverThumb.src = croppedCovers[0];
-    coverThumb.hidden = false;
-    pickCoverButton.classList.add("has-image");
-  } else {
-    coverThumb.hidden = true;
-    coverThumb.removeAttribute("src");
-    pickCoverButton.classList.remove("has-image");
-  }
-};
-
-const openCropAtIndex = () => {
-  selectedCover = cropQueue[cropIndex];
-  if (!selectedCover) {
-    closeCropper();
-    renderCoverThumbs();
-    showToast(`${croppedCovers.length} 张截图已就绪`);
-    return;
-  }
-
-  coverPreview.src = selectedCover.src;
-  selectedCover.box = selectedCover.box || { x: 0, y: 0, w: 100, h: 100 };
-  requestAnimationFrame(updateCoverPreview);
-  confirmCropButton.textContent = `确认这一张 ${cropIndex + 1}/${cropQueue.length}`;
-  openCropper();
-};
 
 coverInput.addEventListener("change", async () => {
   const remainingSlots = 5 - croppedCovers.length;
@@ -1175,16 +1668,17 @@ coverInput.addEventListener("change", async () => {
     return;
   }
 
-  const files = [...coverInput.files].slice(0, remainingSlots);
+  const files = [...(coverInput.files || [])].slice(0, remainingSlots);
   if (!files.length) return;
 
-  if (coverInput.files.length > remainingSlots) {
+  if ((coverInput.files || []).length > remainingSlots) {
     showToast(`还可以上传 ${remainingSlots} 张，已自动截取`);
   }
 
   try {
     cropQueue = await Promise.all(files.map(readImageFile));
     cropIndex = 0;
+    editingCoverIndex = null;
     coverInput.value = "";
     openCropAtIndex();
   } catch {
@@ -1192,167 +1686,129 @@ coverInput.addEventListener("change", async () => {
   }
 });
 
-cropBox.addEventListener("pointerdown", (event) => {
-  if (!selectedCover) return;
-  event.preventDefault();
-  const handle = event.target.tagName === "SPAN" ? [...cropBox.children].indexOf(event.target) : -1;
-  cropBoxState = {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    box: { ...selectedCover.box },
-    handle,
-  };
-  cropBox.setPointerCapture(event.pointerId);
-  cropBox.classList.add("is-dragging");
+coverClearButton.addEventListener("click", () => {
+  croppedCovers = [];
+  sourceCovers = [];
+  cropQueue = [];
+  cropIndex = 0;
+  editingCoverIndex = null;
+  selectedCover = null;
+  renderCoverThumbs();
+  showToast("已清空截图");
 });
-
-coverPreview.parentElement.addEventListener("pointerdown", (event) => {
-  if (!selectedCover || event.target !== coverPreview.parentElement) return;
-  event.preventDefault();
-  const frame = coverPreview.parentElement.getBoundingClientRect();
-  const x = ((event.clientX - frame.left) / frame.width) * 100;
-  const y = ((event.clientY - frame.top) / frame.height) * 100;
-  selectedCover.box = { x, y, w: 1, h: 1 };
-  cropBoxState = {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    box: { ...selectedCover.box },
-    handle: 3,
-    drawing: true,
-  };
-  cropBox.style.pointerEvents = "none";
-  coverPreview.parentElement.setPointerCapture(event.pointerId);
-  updateCoverPreview();
-});
-
-cropBox.addEventListener("pointermove", (event) => {
-  if (!cropBoxState || cropBoxState.pointerId !== event.pointerId || !selectedCover) return;
-  const frame = coverPreview.parentElement.getBoundingClientRect();
-  const dx = ((event.clientX - cropBoxState.startX) / frame.width) * 100;
-  const dy = ((event.clientY - cropBoxState.startY) / frame.height) * 100;
-  const box = { ...cropBoxState.box };
-
-  if (cropBoxState.handle === -1) {
-    box.x += dx;
-    box.y += dy;
-  } else {
-    if ([0, 2].includes(cropBoxState.handle)) {
-      box.x += dx;
-      box.w -= dx;
-    }
-    if ([1, 3].includes(cropBoxState.handle)) box.w += dx;
-    if ([0, 1].includes(cropBoxState.handle)) {
-      box.y += dy;
-      box.h -= dy;
-    }
-    if ([2, 3].includes(cropBoxState.handle)) box.h += dy;
-  }
-
-  box.w = Math.max(8, Math.min(100, box.w));
-  box.h = Math.max(8, Math.min(100, box.h));
-  box.x = Math.max(0, Math.min(100 - box.w, box.x));
-  box.y = Math.max(0, Math.min(100 - box.h, box.y));
-  selectedCover.box = box;
-  updateCoverPreview();
-});
-
-coverPreview.parentElement.addEventListener("pointermove", (event) => {
-  if (!cropBoxState?.drawing || cropBoxState.pointerId !== event.pointerId || !selectedCover) return;
-  const frame = coverPreview.parentElement.getBoundingClientRect();
-  const startX = ((cropBoxState.startX - frame.left) / frame.width) * 100;
-  const startY = ((cropBoxState.startY - frame.top) / frame.height) * 100;
-  const currentX = ((event.clientX - frame.left) / frame.width) * 100;
-  const currentY = ((event.clientY - frame.top) / frame.height) * 100;
-  const x = Math.max(0, Math.min(startX, currentX));
-  const y = Math.max(0, Math.min(startY, currentY));
-  const w = Math.min(100 - x, Math.max(8, Math.abs(currentX - startX)));
-  const h = Math.min(100 - y, Math.max(8, Math.abs(currentY - startY)));
-  selectedCover.box = { x, y, w, h };
-  updateCoverPreview();
-});
-
-const stopCropDrag = (event) => {
-  if (cropBoxState?.pointerId === event.pointerId) {
-    if (cropBoxState.drawing) {
-      coverPreview.parentElement.releasePointerCapture(event.pointerId);
-      cropBox.style.pointerEvents = "";
-    } else {
-      cropBox.releasePointerCapture(event.pointerId);
-    }
-    cropBox.classList.remove("is-dragging");
-    cropBoxState = null;
-  }
-};
-
-cropBox.addEventListener("pointerup", stopCropDrag);
-cropBox.addEventListener("pointercancel", stopCropDrag);
-coverPreview.parentElement.addEventListener("pointerup", stopCropDrag);
-coverPreview.parentElement.addEventListener("pointercancel", stopCropDrag);
-
-let draggedThumbIndex = null;
 
 coverThumbs.addEventListener("click", (event) => {
-  const item = event.target.closest(".thumb-item");
-  if (!item || draggedThumbIndex !== null) return;
-  editingCoverIndex = Number(item.dataset.index);
-  cropQueue = [sourceCovers[editingCoverIndex] || {
-    src: croppedCovers[editingCoverIndex],
-    width: 1200,
-    height: 675,
-    box: { x: 0, y: 0, w: 100, h: 100 },
-  }];
-  cropIndex = 0;
-  openCropAtIndex();
-});
+  const editButton = event.target.closest("[data-thumb-edit]");
+  const coverButton = event.target.closest("[data-thumb-cover]");
+  const removeButton = event.target.closest("[data-thumb-remove]");
 
-coverThumbs.addEventListener("dragstart", (event) => {
-  const item = event.target.closest(".thumb-item");
-  if (!item) return;
-  draggedThumbIndex = Number(item.dataset.index);
-  event.dataTransfer.effectAllowed = "move";
-});
+  if (editButton) {
+    editingCoverIndex = Number(editButton.dataset.thumbEdit);
+    const source = sourceCovers[editingCoverIndex];
+    cropQueue = [source ? { ...source } : { src: croppedCovers[editingCoverIndex], width: 1600, height: 900, scale: 1, minScale: 1, maxScale: 3, offsetX: 0, offsetY: 0 }];
+    cropIndex = 0;
+    openCropAtIndex();
+    return;
+  }
 
-coverThumbs.addEventListener("dragover", (event) => {
-  if (event.target.closest(".thumb-item")) {
-    event.preventDefault();
+  if (coverButton) {
+    const targetIndex = Number(coverButton.dataset.thumbCover);
+    const [nextCover] = croppedCovers.splice(targetIndex, 1);
+    const [nextSource] = sourceCovers.splice(targetIndex, 1);
+    croppedCovers.unshift(nextCover);
+    sourceCovers.unshift(nextSource);
+    renderCoverThumbs();
+    showToast("已设为封面");
+    return;
+  }
+
+  if (removeButton) {
+    const targetIndex = Number(removeButton.dataset.thumbRemove);
+    croppedCovers.splice(targetIndex, 1);
+    sourceCovers.splice(targetIndex, 1);
+    renderCoverThumbs();
+    showToast("已删除这张截图");
   }
 });
 
-coverThumbs.addEventListener("drop", (event) => {
-  const item = event.target.closest(".thumb-item");
-  if (!item || draggedThumbIndex === null) return;
+coverFrame.addEventListener("pointerdown", (event) => {
+  if (!selectedCover) return;
   event.preventDefault();
-  const targetIndex = Number(item.dataset.index);
-  const [moved] = croppedCovers.splice(draggedThumbIndex, 1);
-  const [movedSource] = sourceCovers.splice(draggedThumbIndex, 1);
-  croppedCovers.splice(targetIndex, 0, moved);
-  sourceCovers.splice(targetIndex, 0, movedSource);
-  draggedThumbIndex = null;
-  renderCoverThumbs();
+  cropPointerState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    offsetX: selectedCover.offsetX,
+    offsetY: selectedCover.offsetY,
+  };
+  coverFrame.setPointerCapture(event.pointerId);
+  coverFrame.classList.add("is-dragging");
 });
 
-coverThumbs.addEventListener("dragend", () => {
-  draggedThumbIndex = null;
+coverFrame.addEventListener("pointermove", (event) => {
+  if (!selectedCover || !cropPointerState || cropPointerState.pointerId !== event.pointerId) return;
+  const dx = event.clientX - cropPointerState.startX;
+  const dy = event.clientY - cropPointerState.startY;
+  selectedCover.offsetX = cropPointerState.offsetX + dx;
+  selectedCover.offsetY = cropPointerState.offsetY + dy;
+  clampSelectedCover();
+  updateCropTransform();
 });
 
-cancelCropButton.addEventListener("click", () => {
-  closeCropper();
+const stopCropPointer = (event) => {
+  if (!cropPointerState || cropPointerState.pointerId !== event.pointerId) return;
+  coverFrame.releasePointerCapture(event.pointerId);
+  coverFrame.classList.remove("is-dragging");
+  cropPointerState = null;
+};
+
+coverFrame.addEventListener("pointerup", stopCropPointer);
+coverFrame.addEventListener("pointercancel", stopCropPointer);
+
+coverFrame.addEventListener(
+  "wheel",
+  (event) => {
+    if (!selectedCover) return;
+    event.preventDefault();
+    const direction = event.deltaY > 0 ? -0.06 : 0.06;
+    zoomSelectedCover(selectedCover.scale * (1 + direction), event.clientX, event.clientY);
+  },
+  { passive: false },
+);
+
+cropZoom.addEventListener("input", () => {
+  if (!selectedCover) return;
+  const ratio = Number(cropZoom.value) / 100;
+  zoomSelectedCover(selectedCover.minScale * ratio);
+});
+
+cropResetButton.addEventListener("click", () => {
+  if (!selectedCover) return;
+  selectedCover.scale = selectedCover.minScale * 1.06;
+  centerSelectedCover();
+  clampSelectedCover();
+  updateCropTransform();
+});
+
+cancelCropButtons.forEach((button) => {
+  button.addEventListener("click", () => cancelCropSession());
 });
 
 coverCropper.addEventListener("click", (event) => {
-  if (event.target === coverCropper) closeCropper();
+  if (event.target === coverCropper) cancelCropSession();
 });
 
 confirmCropButton.addEventListener("click", async () => {
   const cropped = await createCroppedCover();
+  if (!cropped) return;
+
   if (editingCoverIndex !== null) {
     croppedCovers[editingCoverIndex] = cropped;
-    sourceCovers[editingCoverIndex] = selectedCover;
+    sourceCovers[editingCoverIndex] = { ...selectedCover };
     editingCoverIndex = null;
     cropQueue = [];
     cropIndex = 0;
+    selectedCover = null;
     closeCropper();
     renderCoverThumbs();
     showToast("截图已更新");
@@ -1360,7 +1816,7 @@ confirmCropButton.addEventListener("click", async () => {
   }
 
   croppedCovers.push(cropped);
-  sourceCovers.push(selectedCover);
+  sourceCovers.push({ ...selectedCover });
   cropIndex += 1;
   openCropAtIndex();
 });
@@ -1373,37 +1829,57 @@ submitForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  const user = getUser();
+  if (!user) {
+    openLogin();
+    showToast("请先登录后再发布作品");
+    return;
+  }
+
+  const author = buildCurrentUserAuthorSnapshot(user);
   const data = new FormData(submitForm);
-  const category = data.get("category");
-  const newWork = {
-    id: `work-${Date.now()}`,
-    title: data.get("title").trim(),
-    description: data.get("description").trim(),
-    url: data.get("url").trim(),
-    github: data.get("github").trim(),
-    category,
-    type: getTypeLabel(category),
-    tool: data.get("tool").trim(),
-    stack: data.get("github").trim() ? "GitHub" : "Live",
-    devices: getSelectedDevices(),
-    visual: getVisualClass(works.length),
-    cover: croppedCovers[0],
-    photos: croppedCovers,
-    createdAt: Date.now(),
-    views: 0,
-    likes: 0,
-    isUserCreated: true,
-    authorId: getUser().id,
-  };
+  const category = safeTrim(data.get("category"));
+  const stack = safeTrim(data.get("stack"));
+
+  const newWork = normalizeWork(
+    {
+      id: `work-${Date.now()}`,
+      title: safeTrim(data.get("title")),
+      description: safeTrim(data.get("description")),
+      url: safeTrim(data.get("url")),
+      github: safeTrim(data.get("github")),
+      category,
+      type: getTypeLabel(category),
+      tool: safeTrim(data.get("tool")),
+      stack,
+      devices: getSelectedDevices(),
+      visual: getVisualClass(works.length),
+      cover: croppedCovers[0],
+      photos: [...croppedCovers],
+      createdAt: Date.now(),
+      views: 0,
+      likes: 0,
+      baseLikes: 0,
+      likedBy: [],
+      isUserCreated: true,
+      authorId: author.id,
+      authorName: author.displayName,
+      authorAvatar: author.avatarUrl,
+      authorHandle: author.handle,
+      authorBio: author.bio,
+    },
+    works.length,
+  );
 
   works = [newWork, ...works];
   saveUserWorks();
   submitForm.reset();
-  selectedCover = null;
-  cropQueue = [];
-  cropIndex = 0;
   croppedCovers = [];
   sourceCovers = [];
+  cropQueue = [];
+  cropIndex = 0;
+  selectedCover = null;
+  editingCoverIndex = null;
   renderCoverThumbs();
   closeCropper();
   activeRank = "latest";
@@ -1415,22 +1891,55 @@ submitForm.addEventListener("submit", async (event) => {
   showToast("作品已发布，已进入最新列表");
 });
 
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closePanel();
+    closeDetail();
+    cancelCropSession(false);
+    closeLogin();
+    closeProfile();
+  }
+
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    void openPanel();
+  }
+
+  if (detailOverlay.classList.contains("is-open")) {
+    if (event.key === "ArrowRight") {
+      stepDetailGallery(1);
+    } else if (event.key === "ArrowLeft") {
+      stepDetailGallery(-1);
+    }
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (coverCropper.classList.contains("is-open") && selectedCover) {
+    ensureCropMetrics(false);
+  }
+});
+
 works = [
   ...getStoredWorks()
     .map((work, index) => normalizeWork(work, index))
     .filter(Boolean),
-  ...seedWorks.map((work, index) => normalizeWork(work, index)).filter(Boolean),
+  ...seedWorks.map((work, index) => normalizeWork(work, index + 100)).filter(Boolean),
 ];
+
 try {
   applyInteractions();
   renderWorks();
-} catch (e) {
-  console.error("[viby] 作品列表渲染失败，已回退为仅展示示例作品", e);
-  works = seedWorks.map((work, index) => normalizeWork(work, index)).filter(Boolean);
+} catch (error) {
+  console.error("[viby] 作品列表渲染失败，已回退为仅展示示例作品", error);
+  works = seedWorks.map((work, index) => normalizeWork(work, index + 100)).filter(Boolean);
   applyInteractions();
   renderWorks();
 }
+
+renderCoverThumbs();
 updateLoginState();
+
 (async () => {
   const oauthResult = new URLSearchParams(window.location.search).get("github_login");
   await ensureBackendProbe();
@@ -1438,6 +1947,7 @@ updateLoginState();
   if (getUser()) {
     closeLogin();
     if (oauthResult === "success") {
+      activeProfileContext = buildProfileContext();
       pendingProfileAvatar = null;
       renderProfilePanel();
       profileOverlay.classList.add("is-open");
