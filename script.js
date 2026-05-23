@@ -48,9 +48,8 @@ const detailNavButtons = document.querySelectorAll("[data-detail-nav]");
 const detailType = document.querySelector("#detailType");
 const detailTitle = document.querySelector("#detailTitle");
 const detailDescription = document.querySelector("#detailDescription");
+const detailReleaseShell = document.querySelector("#detailReleaseShell");
 const detailReleaseCard = document.querySelector("#detailReleaseCard");
-const detailVersionTag = document.querySelector("#detailVersionTag");
-const detailReleaseList = document.querySelector("#detailReleaseList");
 const detailAuthorCard = document.querySelector("#detailAuthorCard");
 const detailMeta = document.querySelector("#detailMeta");
 const detailLikes = document.querySelector("#detailLikes");
@@ -308,6 +307,8 @@ let pendingProfileAvatar = null;
 let activeDetailWorkId = "";
 let activeDetailPhotoIndex = 0;
 let activeProfileContext = null;
+let activeReleaseExpanded = false;
+let activeReleaseEditing = false;
 
 let vibyBackend = {
   checked: false,
@@ -584,6 +585,14 @@ const formatDate = (timestamp) =>
     day: "numeric",
   }).format(new Date(timestamp));
 
+const formatDetailDate = (timestamp) => {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}.${month}.${day}`;
+};
+
 const formatRelativeDate = (timestamp) => {
   const diff = Date.now() - timestamp;
   const days = Math.floor(diff / oneDay);
@@ -774,6 +783,75 @@ const buildDetailMetaItems = (work) => {
   return items.slice(0, 5);
 };
 
+const renderDetailReleaseCard = (work) => {
+  if (!detailReleaseShell || !detailReleaseCard) return;
+  const canEdit = isOwnWork(work);
+  const hasReleaseContent = Boolean(work.versionTag || work.releaseNotes?.length);
+
+  if (!hasReleaseContent && !canEdit) {
+    detailReleaseShell.hidden = true;
+    detailReleaseCard.innerHTML = "";
+    return;
+  }
+
+  detailReleaseShell.hidden = false;
+
+  const currentNotes = work.releaseNotes?.length ? work.releaseNotes : [];
+  const currentVersion = work.versionTag || "";
+
+  if (activeReleaseEditing && canEdit) {
+    detailReleaseCard.innerHTML = `
+      <div class="detail-release-head">
+        <strong>编辑版本</strong>
+        <span>发布者可修改</span>
+      </div>
+      <label class="detail-release-field">
+        <span>版本号</span>
+        <input id="detailReleaseVersionInput" type="text" value="${escapeHTML(currentVersion)}" placeholder="例如 v1.0.3" />
+      </label>
+      <label class="detail-release-field">
+        <span>迭代记录</span>
+        <textarea id="detailReleaseNotesInput" rows="5" placeholder="每行一条更新内容">${escapeHTML(
+          currentNotes.join("\n"),
+        )}</textarea>
+      </label>
+      <div class="detail-release-actions">
+        <button type="button" class="detail-release-edit" data-release-save>保存</button>
+        <button type="button" class="detail-release-edit ghost" data-release-cancel>取消</button>
+      </div>
+    `;
+    return;
+  }
+
+  detailReleaseCard.innerHTML = `
+    <div class="detail-release-bar">
+      <button type="button" class="detail-release-toggle" data-release-toggle>
+        <span class="detail-release-kicker">版本迭代</span>
+        <strong>${escapeHTML(currentVersion || (currentNotes.length ? "查看本次更新" : "添加版本记录"))}</strong>
+        <small>${activeReleaseExpanded ? "收起" : "展开"}</small>
+      </button>
+      ${
+        canEdit
+          ? `<button type="button" class="detail-release-edit" data-release-edit>${hasReleaseContent ? "修改" : "添加"}</button>`
+          : ""
+      }
+    </div>
+    ${
+      activeReleaseExpanded
+        ? `
+      <div class="detail-release-panel">
+        ${
+          currentNotes.length
+            ? `<ul>${currentNotes.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
+            : `<p>这一版的迭代记录还没补充，发布者稍后可以继续完善。</p>`
+        }
+      </div>
+    `
+        : ""
+    }
+  `;
+};
+
 const renderWorks = () => {
   const visibleWorks = getRankedWorks().slice(0, 6);
   const rankLabels = ["1", "2", "3"];
@@ -933,22 +1011,14 @@ const openDetail = (id, options = {}) => {
 
   activeDetailWorkId = work.id;
   activeDetailPhotoIndex = clamp(options.photoIndex ?? 0, 0, Math.max(0, (work.photos?.length || 1) - 1));
+  activeReleaseExpanded = false;
+  activeReleaseEditing = false;
 
   const author = getAuthorSnapshotForWork(work);
   detailType.textContent = work.type;
   detailTitle.textContent = work.title;
   detailDescription.textContent = work.description;
-  if (work.versionTag || work.releaseNotes?.length) {
-    detailReleaseCard.hidden = false;
-    detailVersionTag.textContent = work.versionTag || "最近一版";
-    detailReleaseList.innerHTML = (work.releaseNotes?.length ? work.releaseNotes : ["补充了这一版的细节打磨。"])
-      .map((item) => `<li>${escapeHTML(item)}</li>`)
-      .join("");
-  } else {
-    detailReleaseCard.hidden = true;
-    detailVersionTag.textContent = "";
-    detailReleaseList.innerHTML = "";
-  }
+  renderDetailReleaseCard(work);
   detailAuthorCard.innerHTML = `
     <button type="button" class="detail-author-button" data-open-author="${work.id}">
       <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
@@ -963,7 +1033,7 @@ const openDetail = (id, options = {}) => {
     .join("");
   detailLikes.textContent = formatNumber(work.likes);
   detailViews.textContent = formatNumber(work.views);
-  detailDate.textContent = formatDate(work.createdAt);
+  detailDate.textContent = formatDetailDate(work.createdAt);
   detailActions.innerHTML = `
     <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
     ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
@@ -982,6 +1052,8 @@ const closeDetail = () => {
   detailOverlay.setAttribute("aria-hidden", "true");
   activeDetailWorkId = "";
   activeDetailPhotoIndex = 0;
+  activeReleaseExpanded = false;
+  activeReleaseEditing = false;
 };
 
 const stepDetailGallery = (direction) => {
@@ -1011,6 +1083,15 @@ const deleteWork = (id) => {
 
   closeDetail();
   showToast("作品已删除");
+};
+
+const saveReleaseForWork = (id, versionTag, releaseNotes) => {
+  const work = works.find((item) => item.id === id);
+  if (!work || !isOwnWork(work)) return false;
+  work.versionTag = safeTrim(versionTag);
+  work.releaseNotes = parseReleaseNotes(releaseNotes);
+  saveUserWorks();
+  return true;
 };
 
 const getWorksByAuthor = (context) => {
@@ -1739,6 +1820,50 @@ detailActions.addEventListener("click", (event) => {
 
   if (deleteButton) {
     deleteWork(deleteButton.dataset.deleteWork);
+  }
+});
+
+detailReleaseCard?.addEventListener("click", (event) => {
+  const work = works.find((item) => item.id === activeDetailWorkId);
+  if (!work) return;
+
+  const toggleButton = event.target.closest("[data-release-toggle]");
+  const editButton = event.target.closest("[data-release-edit]");
+  const cancelButton = event.target.closest("[data-release-cancel]");
+  const saveButton = event.target.closest("[data-release-save]");
+
+  if (toggleButton) {
+    activeReleaseExpanded = !activeReleaseExpanded;
+    renderDetailReleaseCard(work);
+    return;
+  }
+
+  if (editButton && isOwnWork(work)) {
+    activeReleaseEditing = true;
+    activeReleaseExpanded = true;
+    renderDetailReleaseCard(work);
+    return;
+  }
+
+  if (cancelButton) {
+    activeReleaseEditing = false;
+    renderDetailReleaseCard(work);
+    return;
+  }
+
+  if (saveButton && isOwnWork(work)) {
+    const versionInput = detailReleaseCard.querySelector("#detailReleaseVersionInput");
+    const notesInput = detailReleaseCard.querySelector("#detailReleaseNotesInput");
+    const saved = saveReleaseForWork(
+      work.id,
+      versionInput?.value || "",
+      notesInput?.value || "",
+    );
+    if (!saved) return;
+    activeReleaseEditing = false;
+    activeReleaseExpanded = true;
+    renderDetailReleaseCard(work);
+    showToast("版本记录已更新");
   }
 });
 
