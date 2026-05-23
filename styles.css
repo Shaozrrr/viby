@@ -2225,8 +2225,9 @@ input[type="range"] {
 }
 
 .work-content {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto minmax(148px, auto) minmax(46px, auto) minmax(74px, auto) auto;
+  align-content: start;
   gap: 14px;
   padding: 6px 24px 24px;
 }
@@ -2271,21 +2272,38 @@ input[type="range"] {
   color: var(--muted);
 }
 
+.work-copy {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
 .work-content h3 {
   margin: 0;
   font-size: 30px;
   line-height: 1.04;
+  min-height: 62px;
 }
 
 .work-content p {
-  min-height: 0;
   margin: 0;
+  min-height: 72px;
 }
 
 .work-meta {
+  display: flex;
   flex-wrap: nowrap;
+  align-items: flex-start;
+  align-content: flex-start;
   gap: 8px;
+  min-height: 38px;
   overflow: hidden;
+}
+
+.work-meta.is-empty::before {
+  content: "";
+  display: block;
+  min-height: 30px;
 }
 
 .work-meta span {
@@ -2299,6 +2317,7 @@ input[type="range"] {
   justify-content: space-between;
   gap: 14px;
   padding-top: 4px;
+  min-height: 60px;
 }
 
 .author-chip,
@@ -2363,6 +2382,7 @@ input[type="range"] {
 }
 
 .work-actions {
+  align-items: center;
   flex-wrap: wrap;
   margin-top: auto;
 }
@@ -2890,12 +2910,17 @@ input[type="range"] {
   gap: 12px;
 }
 
+.detail-release-trigger-row {
+  justify-content: flex-end;
+}
+
 .detail-release-trigger {
   display: inline-grid;
   grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
   min-height: 38px;
+  min-width: 170px;
   padding: 0 14px 0 12px;
   border: 1px solid rgba(20, 18, 27, 0.08);
   border-radius: 999px;
@@ -2941,17 +2966,25 @@ input[type="range"] {
   cursor: pointer;
 }
 
+.detail-release-popover-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .detail-release-popover {
   position: absolute;
   right: 0;
   bottom: calc(100% + 14px);
   z-index: 7;
   width: min(420px, calc(100% - 10px));
+  pointer-events: none;
 }
 
 .detail-release-popover-backdrop {
   position: fixed;
   inset: 0;
+  pointer-events: auto;
 }
 
 .detail-release-popover-card {
@@ -2966,6 +2999,7 @@ input[type="range"] {
     radial-gradient(circle at top right, rgba(126, 223, 255, 0.16), transparent 12rem);
   box-shadow: 0 28px 60px rgba(18, 14, 35, 0.16);
   backdrop-filter: blur(22px);
+  pointer-events: auto;
 }
 
 .detail-release-popover-card-edit {
@@ -3174,6 +3208,17 @@ input[type="range"] {
 }
 
 @media (max-width: 720px) {
+  .work-content {
+    grid-template-rows: auto auto auto auto auto;
+  }
+
+  .work-content h3,
+  .work-content p,
+  .work-meta,
+  .work-author-row {
+    min-height: 0;
+  }
+
   .thumb-card {
     grid-template-columns: 1fr;
   }
@@ -3194,6 +3239,12 @@ input[type="range"] {
   .crop-confirm {
     width: 100%;
     min-width: 0;
+  }
+
+  .detail-release-popover {
+    left: 0;
+    right: auto;
+    width: 100%;
   }
 
   .detail-gallery-shell {

@@ -799,16 +799,16 @@ const renderDetailReleaseCard = (work) => {
   const currentNotes = work.releaseNotes?.length ? work.releaseNotes : [];
   const currentVersion = work.versionTag || "";
 
-  const triggerLabel = currentVersion || (currentNotes.length ? `${currentNotes.length} 条更新` : "添加版本记录");
+  const triggerLabel =
+    currentVersion || (currentNotes.length ? `${currentNotes.length} 条迭代` : "添加版本记录");
 
-  if (activeReleaseEditing && canEdit) {
+  if (activeReleaseExpanded && activeReleaseEditing && canEdit) {
     detailReleaseCard.innerHTML = `
       <div class="detail-release-trigger-row">
         <button type="button" class="detail-release-trigger is-active" data-release-toggle>
           <span class="detail-release-trigger-kicker">版本迭代</span>
           <strong>${escapeHTML(triggerLabel)}</strong>
         </button>
-        <button type="button" class="detail-release-mini" data-release-close>关闭</button>
       </div>
       <div class="detail-release-popover is-open">
         <div class="detail-release-popover-backdrop" data-release-close></div>
@@ -842,15 +842,15 @@ const renderDetailReleaseCard = (work) => {
 
   detailReleaseCard.innerHTML = `
     <div class="detail-release-trigger-row">
-      <button type="button" class="detail-release-trigger ${activeReleaseExpanded ? "is-active" : ""}" data-release-toggle>
+      <button
+        type="button"
+        class="detail-release-trigger ${activeReleaseExpanded ? "is-active" : ""}"
+        data-release-toggle
+        aria-expanded="${activeReleaseExpanded ? "true" : "false"}"
+      >
         <span class="detail-release-trigger-kicker">版本迭代</span>
         <strong>${escapeHTML(triggerLabel)}</strong>
       </button>
-      ${
-        canEdit
-          ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "修改" : "添加"}</button>`
-          : ""
-      }
     </div>
     ${
       activeReleaseExpanded
@@ -863,13 +863,22 @@ const renderDetailReleaseCard = (work) => {
               <span>版本迭代</span>
               <strong>${escapeHTML(currentVersion || "最近更新")}</strong>
             </div>
-            <button type="button" class="detail-release-icon" data-release-close aria-label="关闭">×</button>
+            <div class="detail-release-popover-tools">
+              ${
+                canEdit
+                  ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "编辑" : "添加"}</button>`
+                  : ""
+              }
+              <button type="button" class="detail-release-icon" data-release-close aria-label="关闭">×</button>
+            </div>
           </div>
           <div class="detail-release-panel">
             ${
               currentNotes.length
                 ? `<ul>${currentNotes.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
-                : `<p>这件作品暂时还没有公开版本记录。</p>`
+                : canEdit
+                  ? `<p>这一版还没写公开记录。点右上角“添加”，把这次更新补上。</p>`
+                  : `<p>这件作品暂时还没有公开版本记录。</p>`
             }
           </div>
         </div>
@@ -899,9 +908,11 @@ const renderWorks = () => {
               <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
               <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
             </div>
-            <h3>${escapeHTML(work.title)}</h3>
-            <p>${escapeHTML(work.description)}</p>
-            <div class="work-meta">
+            <div class="work-copy">
+              <h3>${escapeHTML(work.title)}</h3>
+              <p>${escapeHTML(work.description)}</p>
+            </div>
+            <div class="work-meta ${meta.length ? "" : "is-empty"}">
               ${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}
             </div>
             <div class="work-author-row">
@@ -1854,6 +1865,7 @@ detailActions.addEventListener("click", (event) => {
 detailReleaseCard?.addEventListener("click", (event) => {
   const work = works.find((item) => item.id === activeDetailWorkId);
   if (!work) return;
+  const hasReleaseContent = Boolean(work.versionTag || work.releaseNotes?.length);
 
   const toggleButton = event.target.closest("[data-release-toggle]");
   const editButton = event.target.closest("[data-release-edit]");
@@ -1862,8 +1874,13 @@ detailReleaseCard?.addEventListener("click", (event) => {
   const closeButton = event.target.closest("[data-release-close]");
 
   if (toggleButton) {
-    activeReleaseExpanded = !activeReleaseExpanded;
-    activeReleaseEditing = false;
+    if (activeReleaseExpanded) {
+      activeReleaseExpanded = false;
+      activeReleaseEditing = false;
+    } else {
+      activeReleaseExpanded = true;
+      activeReleaseEditing = Boolean(isOwnWork(work) && !hasReleaseContent);
+    }
     renderDetailReleaseCard(work);
     return;
   }

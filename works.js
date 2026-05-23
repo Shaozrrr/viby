@@ -236,9 +236,11 @@ const render = () => {
               <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
               <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
             </div>
-            <h3>${escapeHTML(work.title)}</h3>
-            <p>${escapeHTML(work.description)}</p>
-            <div class="work-meta">
+            <div class="work-copy">
+              <h3>${escapeHTML(work.title)}</h3>
+              <p>${escapeHTML(work.description)}</p>
+            </div>
+            <div class="work-meta ${meta.length ? "" : "is-empty"}">
               ${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}
             </div>
             <div class="work-author-row">
