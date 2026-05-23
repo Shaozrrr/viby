@@ -2857,6 +2857,7 @@ input[type="range"] {
 }
 
 .detail-body {
+  position: relative;
   gap: 18px;
   padding: 40px 38px 36px;
 }
@@ -2874,84 +2875,141 @@ input[type="range"] {
 }
 
 .detail-release-shell {
-  margin-top: -2px;
+  margin-top: 2px;
 }
 
 .detail-release-card {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
-.detail-release-bar,
-.detail-release-head,
+.detail-release-trigger-row,
 .detail-release-actions {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.detail-release-bar {
-  justify-content: space-between;
-}
-
-.detail-release-toggle,
-.detail-release-edit {
-  border: 1px solid rgba(20, 18, 27, 0.08);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.detail-release-toggle {
-  flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+.detail-release-trigger {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
-  padding: 0 14px;
+  min-height: 38px;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(20, 18, 27, 0.08);
+  border-radius: 999px;
+  color: #24202d;
+  background: rgba(255, 255, 255, 0.76);
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 12px 28px rgba(18, 14, 35, 0.05);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
-.detail-release-kicker {
+.detail-release-trigger:hover,
+.detail-release-trigger.is-active {
+  transform: translateY(-1px);
+  border-color: rgba(95, 61, 255, 0.16);
+  box-shadow: 0 16px 30px rgba(95, 61, 255, 0.12);
+}
+
+.detail-release-trigger-kicker {
   color: var(--muted);
   font-size: 11px;
   font-weight: 760;
 }
 
-.detail-release-toggle strong {
-  font-size: 14px;
+.detail-release-trigger strong {
+  font-size: 13px;
   letter-spacing: -0.02em;
 }
 
-.detail-release-toggle small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 760;
-}
-
+.detail-release-mini,
 .detail-release-edit {
-  min-height: 42px;
-  padding: 0 14px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid rgba(20, 18, 27, 0.08);
+  border-radius: 999px;
   color: #4f4b58;
+  background: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   font-weight: 760;
   cursor: pointer;
 }
 
-.detail-release-edit.ghost {
-  background: rgba(255, 255, 255, 0.5);
+.detail-release-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 14px);
+  z-index: 7;
+  width: min(420px, calc(100% - 10px));
 }
 
-.detail-release-panel,
-.detail-release-editor {
+.detail-release-popover-backdrop {
+  position: fixed;
+  inset: 0;
+}
+
+.detail-release-popover-card {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(246, 243, 255, 0.9)),
+    radial-gradient(circle at top right, rgba(126, 223, 255, 0.16), transparent 12rem);
+  box-shadow: 0 28px 60px rgba(18, 14, 35, 0.16);
+  backdrop-filter: blur(22px);
+}
+
+.detail-release-popover-card-edit {
+  gap: 16px;
+}
+
+.detail-release-popover-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detail-release-popover-head span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-release-popover-head strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.detail-release-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(20, 18, 27, 0.08);
+  border-radius: 999px;
+  color: #4f4b58;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detail-release-panel {
   display: grid;
   gap: 12px;
-  padding: 16px 18px;
-  border: 1px solid rgba(20, 18, 27, 0.06);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.64);
-  box-shadow: 0 14px 30px rgba(18, 14, 35, 0.05);
 }
 
 .detail-release-panel p {
@@ -3003,6 +3061,20 @@ input[type="range"] {
   padding: 12px 14px;
   resize: vertical;
   line-height: 1.65;
+}
+
+.detail-release-actions {
+  justify-content: flex-end;
+}
+
+.detail-release-edit.primary {
+  color: white;
+  border-color: rgba(18, 18, 29, 0.8);
+  background: linear-gradient(135deg, #12121d, #5f3dff);
+}
+
+.detail-release-edit.ghost {
+  background: rgba(255, 255, 255, 0.58);
 }
 
 .detail-author-button {

@@ -799,52 +799,80 @@ const renderDetailReleaseCard = (work) => {
   const currentNotes = work.releaseNotes?.length ? work.releaseNotes : [];
   const currentVersion = work.versionTag || "";
 
+  const triggerLabel = currentVersion || (currentNotes.length ? `${currentNotes.length} 条更新` : "添加版本记录");
+
   if (activeReleaseEditing && canEdit) {
     detailReleaseCard.innerHTML = `
-      <div class="detail-release-head">
-        <strong>编辑版本</strong>
-        <span>发布者可修改</span>
+      <div class="detail-release-trigger-row">
+        <button type="button" class="detail-release-trigger is-active" data-release-toggle>
+          <span class="detail-release-trigger-kicker">版本迭代</span>
+          <strong>${escapeHTML(triggerLabel)}</strong>
+        </button>
+        <button type="button" class="detail-release-mini" data-release-close>关闭</button>
       </div>
-      <label class="detail-release-field">
-        <span>版本号</span>
-        <input id="detailReleaseVersionInput" type="text" value="${escapeHTML(currentVersion)}" placeholder="例如 v1.0.3" />
-      </label>
-      <label class="detail-release-field">
-        <span>迭代记录</span>
-        <textarea id="detailReleaseNotesInput" rows="5" placeholder="每行一条更新内容">${escapeHTML(
-          currentNotes.join("\n"),
-        )}</textarea>
-      </label>
-      <div class="detail-release-actions">
-        <button type="button" class="detail-release-edit" data-release-save>保存</button>
-        <button type="button" class="detail-release-edit ghost" data-release-cancel>取消</button>
+      <div class="detail-release-popover is-open">
+        <div class="detail-release-popover-backdrop" data-release-close></div>
+        <div class="detail-release-popover-card detail-release-popover-card-edit">
+          <div class="detail-release-popover-head">
+            <div>
+              <span>版本迭代</span>
+              <strong>编辑版本记录</strong>
+            </div>
+            <button type="button" class="detail-release-icon" data-release-close aria-label="关闭">×</button>
+          </div>
+          <label class="detail-release-field">
+            <span>版本号</span>
+            <input id="detailReleaseVersionInput" type="text" value="${escapeHTML(currentVersion)}" placeholder="例如 v1.0.3" />
+          </label>
+          <label class="detail-release-field">
+            <span>迭代记录</span>
+            <textarea id="detailReleaseNotesInput" rows="5" placeholder="每行一条更新内容">${escapeHTML(
+              currentNotes.join("\n"),
+            )}</textarea>
+          </label>
+          <div class="detail-release-actions">
+            <button type="button" class="detail-release-edit primary" data-release-save>保存</button>
+            <button type="button" class="detail-release-edit ghost" data-release-cancel>取消</button>
+          </div>
+        </div>
       </div>
     `;
     return;
   }
 
   detailReleaseCard.innerHTML = `
-    <div class="detail-release-bar">
-      <button type="button" class="detail-release-toggle" data-release-toggle>
-        <span class="detail-release-kicker">版本迭代</span>
-        <strong>${escapeHTML(currentVersion || (currentNotes.length ? "查看本次更新" : "添加版本记录"))}</strong>
-        <small>${activeReleaseExpanded ? "收起" : "展开"}</small>
+    <div class="detail-release-trigger-row">
+      <button type="button" class="detail-release-trigger ${activeReleaseExpanded ? "is-active" : ""}" data-release-toggle>
+        <span class="detail-release-trigger-kicker">版本迭代</span>
+        <strong>${escapeHTML(triggerLabel)}</strong>
       </button>
       ${
         canEdit
-          ? `<button type="button" class="detail-release-edit" data-release-edit>${hasReleaseContent ? "修改" : "添加"}</button>`
+          ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "修改" : "添加"}</button>`
           : ""
       }
     </div>
     ${
       activeReleaseExpanded
         ? `
-      <div class="detail-release-panel">
-        ${
-          currentNotes.length
-            ? `<ul>${currentNotes.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
-            : `<p>这一版的迭代记录还没补充，发布者稍后可以继续完善。</p>`
-        }
+      <div class="detail-release-popover is-open">
+        <div class="detail-release-popover-backdrop" data-release-close></div>
+        <div class="detail-release-popover-card">
+          <div class="detail-release-popover-head">
+            <div>
+              <span>版本迭代</span>
+              <strong>${escapeHTML(currentVersion || "最近更新")}</strong>
+            </div>
+            <button type="button" class="detail-release-icon" data-release-close aria-label="关闭">×</button>
+          </div>
+          <div class="detail-release-panel">
+            ${
+              currentNotes.length
+                ? `<ul>${currentNotes.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
+                : `<p>这件作品暂时还没有公开版本记录。</p>`
+            }
+          </div>
+        </div>
       </div>
     `
         : ""
@@ -1831,9 +1859,11 @@ detailReleaseCard?.addEventListener("click", (event) => {
   const editButton = event.target.closest("[data-release-edit]");
   const cancelButton = event.target.closest("[data-release-cancel]");
   const saveButton = event.target.closest("[data-release-save]");
+  const closeButton = event.target.closest("[data-release-close]");
 
   if (toggleButton) {
     activeReleaseExpanded = !activeReleaseExpanded;
+    activeReleaseEditing = false;
     renderDetailReleaseCard(work);
     return;
   }
@@ -1846,6 +1876,13 @@ detailReleaseCard?.addEventListener("click", (event) => {
   }
 
   if (cancelButton) {
+    activeReleaseEditing = false;
+    renderDetailReleaseCard(work);
+    return;
+  }
+
+  if (closeButton) {
+    activeReleaseExpanded = false;
     activeReleaseEditing = false;
     renderDetailReleaseCard(work);
     return;
