@@ -1498,7 +1498,7 @@ const getPreferredCropMode = (width, height) => {
 const getCropAspectValue = (cover) => {
   const mode = safeTrim(cover?.aspectMode) || "landscape";
   if (mode === "landscape") return "16 / 10";
-  if (mode === "portrait") return "4 / 5";
+  if (mode === "portrait") return "3 / 4";
   return "16 / 10";
 };
 
@@ -1699,7 +1699,7 @@ const createCroppedCover = async () => {
     canvas.width = 1600;
     canvas.height = 1000;
   } else if (cropMode === "portrait") {
-    canvas.width = 1280;
+    canvas.width = 1200;
     canvas.height = 1600;
   } else if (aspectRatio >= 1) {
     canvas.width = 1600;
