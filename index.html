@@ -217,12 +217,12 @@
               <span class="cover-copy cover-copy-main">
                 <span class="cover-plus">+</span>
                 <strong>上传作品截图</strong>
-                <small>支持横图、竖图和不同比例。首张默认作为首图，也可以稍后改顺序。</small>
+                <small>支持横版和竖版两种常用展示比例。首张默认作为首图，也可以稍后改顺序。</small>
               </span>
               <span class="cover-copy cover-copy-sub">
-                <span>自由裁切</span>
+                <span>横版 / 竖版</span>
                 <span>最多 5 张</span>
-                <span>默认首图</span>
+                <span>首张默认封面</span>
               </span>
               <img id="coverThumb" alt="已裁剪封面预览" hidden />
             </label>
@@ -289,7 +289,7 @@
         <button class="close-button" data-cancel-crop aria-label="关闭">×</button>
         <span class="section-kicker" id="cropStageLabel">Cover</span>
         <h2>调整截图取景</h2>
-        <p id="cropHint">拖动画面调整位置，用滚轮或滑杆缩放。你可以保留原比例，也可以切换成更适合展示的版式。</p>
+        <p id="cropHint">拖动画面调整位置，用滚轮或滑杆缩放。你可以在横版和竖版两种常用比例之间切换。</p>
         <div class="crop-shell">
           <div class="crop-frame" id="cropViewport">
             <div class="crop-guides" aria-hidden="true"></div>
@@ -301,10 +301,8 @@
               <span>当前截图</span>
             </div>
             <div class="crop-ratio-group" id="cropRatioGroup" aria-label="裁切比例">
-              <button class="crop-ratio-button is-active" type="button" data-crop-ratio="free">原比例</button>
-              <button class="crop-ratio-button" type="button" data-crop-ratio="landscape">横图</button>
-              <button class="crop-ratio-button" type="button" data-crop-ratio="portrait">竖图</button>
-              <button class="crop-ratio-button" type="button" data-crop-ratio="square">方图</button>
+              <button class="crop-ratio-button is-active" type="button" data-crop-ratio="landscape">横版</button>
+              <button class="crop-ratio-button" type="button" data-crop-ratio="portrait">竖版</button>
             </div>
             <label class="range-field">
               <span>缩放</span>
@@ -329,7 +327,7 @@
         <button class="close-button" data-close-login aria-label="关闭">×</button>
         <span class="section-kicker">Sign in</span>
         <h2>登录 Viby</h2>
-        <p>用邮箱验证码或 GitHub 进入社区。验证码会发到你的邮箱，本地开发环境会显示调试验证码。</p>
+        <p id="loginHint">用邮箱验证码或 GitHub 进入社区。验证码会发到你的邮箱，本地开发环境会显示调试验证码。</p>
         <form id="loginForm">
           <label>
             邮箱

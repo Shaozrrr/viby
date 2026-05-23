@@ -10,6 +10,7 @@ const closeLoginButton = document.querySelector("[data-close-login]");
 const githubLoginButton = document.querySelector("[data-github-login]");
 const sendCodeButton = document.querySelector("[data-send-code]");
 const loginForm = document.querySelector("#loginForm");
+const loginHint = document.querySelector("#loginHint");
 const workGrid = document.querySelector("#workGrid");
 const submitForm = document.querySelector("#submitForm");
 const statWorks = document.querySelector("#statWorks");
@@ -36,6 +37,7 @@ const cropZoom = document.querySelector("#cropZoom");
 const cropZoomValue = document.querySelector("#cropZoomValue");
 const cropResetButton = document.querySelector("[data-reset-crop]");
 const cropRatioGroup = document.querySelector("#cropRatioGroup");
+const cropHint = document.querySelector("#cropHint");
 
 const detailOverlay = document.querySelector(".detail-overlay");
 const closeDetailButton = document.querySelector("[data-close-detail]");
@@ -317,10 +319,24 @@ let vibyBackend = {
   checked: false,
   apiOnline: false,
   githubOAuthReady: false,
+  emailLoginReady: false,
   problem: null,
 };
 
 let backendProbePromise = null;
+
+const updateLoginHint = () => {
+  if (!loginHint) return;
+  if (!vibyBackend.apiOnline) {
+    loginHint.textContent = "用邮箱验证码或 GitHub 进入社区。当前页面需要通过 Viby 后端服务才能完成登录。";
+    return;
+  }
+  if (!vibyBackend.emailLoginReady) {
+    loginHint.textContent = "当前是本地开发环境，点击获取验证码后会直接显示 6 位调试码，不会真的发邮件。";
+    return;
+  }
+  loginHint.textContent = "用邮箱验证码或 GitHub 进入社区。验证码会发到你的邮箱；如果暂时没看到，也留意一下垃圾邮件。";
+};
 
 const getStoredWorks = () => {
   try {
@@ -1302,19 +1318,34 @@ const readDocumentCookie = (name) => {
 
 const probeBackend = async () => {
   if (window.location.protocol === "file:") {
-    vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, problem: "file" };
+    vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, emailLoginReady: false, problem: "file" };
+    updateLoginHint();
     return vibyBackend;
   }
 
   try {
     const response = await fetch("/api/health", { credentials: "same-origin", cache: "no-store" });
     if (response.status === 404) {
-      vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, problem: "static_server" };
+      vibyBackend = {
+        checked: true,
+        apiOnline: false,
+        githubOAuthReady: false,
+        emailLoginReady: false,
+        problem: "static_server",
+      };
+      updateLoginHint();
       return vibyBackend;
     }
 
     if (!response.ok) {
-      vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, problem: "bad_response" };
+      vibyBackend = {
+        checked: true,
+        apiOnline: false,
+        githubOAuthReady: false,
+        emailLoginReady: false,
+        problem: "bad_response",
+      };
+      updateLoginHint();
       return vibyBackend;
     }
 
@@ -1323,11 +1354,14 @@ const probeBackend = async () => {
       checked: true,
       apiOnline: true,
       githubOAuthReady: Boolean(data.githubOAuthReady),
+      emailLoginReady: Boolean(data.emailLoginReady),
       problem: null,
     };
+    updateLoginHint();
     return vibyBackend;
   } catch {
-    vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, problem: "network" };
+    vibyBackend = { checked: true, apiOnline: false, githubOAuthReady: false, emailLoginReady: false, problem: "network" };
+    updateLoginHint();
     return vibyBackend;
   }
 };
@@ -1430,11 +1464,12 @@ const readImageFile = (file) =>
     reader.addEventListener("load", () => {
       const image = new Image();
       image.addEventListener("load", () => {
+        const aspectMode = getPreferredCropMode(image.width, image.height);
         resolve({
           src: reader.result,
           width: image.width,
           height: image.height,
-          aspectMode: "free",
+          aspectMode,
           scale: 1,
           minScale: 1,
           maxScale: 3,
@@ -1454,25 +1489,33 @@ const getCropFrameSize = () => ({
   height: Math.max(coverFrame.clientHeight, 1),
 });
 
+const getPreferredCropMode = (width, height) => {
+  const safeWidth = Math.max(Number(width) || 1, 1);
+  const safeHeight = Math.max(Number(height) || 1, 1);
+  return safeHeight > safeWidth * 1.02 ? "portrait" : "landscape";
+};
+
 const getCropAspectValue = (cover) => {
-  const mode = safeTrim(cover?.aspectMode) || "free";
-  if (mode === "landscape") return "16 / 9";
+  const mode = safeTrim(cover?.aspectMode) || "landscape";
+  if (mode === "landscape") return "16 / 10";
   if (mode === "portrait") return "4 / 5";
-  if (mode === "square") return "1 / 1";
-  const width = Math.max(Number(cover?.width) || 1, 1);
-  const height = Math.max(Number(cover?.height) || 1, 1);
-  return `${width} / ${height}`;
+  return "16 / 10";
 };
 
 const updateCropAspect = () => {
   if (!selectedCover) return;
   const aspectValue = getCropAspectValue(selectedCover);
+  const mode = safeTrim(selectedCover.aspectMode) || "landscape";
   coverFrame.style.aspectRatio = aspectValue;
+  coverFrame.dataset.cropMode = mode;
+  if (cropHint) {
+    cropHint.textContent =
+      mode === "portrait"
+        ? "当前是竖版取景，更适合手机界面或长海报。拖动画面微调位置，用滚轮或滑杆缩放。"
+        : "当前是横版取景，更适合网站、桌面界面和横向画面。拖动画面微调位置，用滚轮或滑杆缩放。";
+  }
   cropRatioGroup?.querySelectorAll("[data-crop-ratio]").forEach((button) => {
-    button.classList.toggle(
-      "is-active",
-      button.dataset.cropRatio === (safeTrim(selectedCover.aspectMode) || "free"),
-    );
+    button.classList.toggle("is-active", button.dataset.cropRatio === mode);
   });
 };
 
@@ -1561,8 +1604,8 @@ const renderCoverThumbs = () => {
   const count = croppedCovers.length;
   coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
   coverHelperText.textContent = count
-    ? "点击“重裁”可以重新调整取景；点“设为首图”只会把它挪到第一张，不会复制出额外图片。"
-    : "建议第一张放最能代表作品的页面，最多 5 张，别人看详情时会按顺序浏览。";
+    ? "点击“重裁”可以重新调整横版或竖版取景；点“设为首图”只会把它挪到第一张，不会复制出额外图片。"
+    : "建议第一张放最能代表作品的页面。支持横版和竖版两种常用比例，别人看详情时会按顺序浏览。";
   coverClearButton.hidden = count === 0;
 
   if (count) {
@@ -1611,7 +1654,8 @@ const openCropAtIndex = () => {
     return;
   }
 
-  selectedCover.aspectMode = safeTrim(selectedCover.aspectMode) || "free";
+  selectedCover.aspectMode =
+    safeTrim(selectedCover.aspectMode) || getPreferredCropMode(selectedCover.width, selectedCover.height);
   coverPreview.src = selectedCover.src;
   cropStageLabel.textContent = editingCoverIndex !== null ? "重新裁剪" : "截图裁剪";
   cropCounter.textContent =
@@ -1650,7 +1694,14 @@ const createCroppedCover = async () => {
   const aspectRatio = Math.max(sw / sh, 0.2);
 
   const canvas = document.createElement("canvas");
-  if (aspectRatio >= 1) {
+  const cropMode = safeTrim(selectedCover.aspectMode) || "landscape";
+  if (cropMode === "landscape") {
+    canvas.width = 1600;
+    canvas.height = 1000;
+  } else if (cropMode === "portrait") {
+    canvas.width = 1280;
+    canvas.height = 1600;
+  } else if (aspectRatio >= 1) {
     canvas.width = 1600;
     canvas.height = Math.max(480, Math.round(canvas.width / aspectRatio));
   } else {
@@ -1719,7 +1770,7 @@ sendCodeButton.addEventListener("click", async () => {
     if (data.devCode) {
       showToast(`开发环境验证码：${data.devCode}`);
     } else {
-      showToast("验证码已发送到你的邮箱");
+      showToast(`验证码已发到 ${data.deliveredTo || email}，请留意收件箱和垃圾邮件`);
     }
   } catch {
     showToast("验证码发送失败，请检查网络后重试");
@@ -2087,7 +2138,7 @@ coverThumbs.addEventListener("click", (event) => {
             src: croppedCovers[editingCoverIndex],
             width: 1600,
             height: 900,
-            aspectMode: "free",
+            aspectMode: getPreferredCropMode(1600, 900),
             scale: 1,
             minScale: 1,
             maxScale: 3,
@@ -2182,7 +2233,7 @@ cropResetButton.addEventListener("click", () => {
 cropRatioGroup?.addEventListener("click", (event) => {
   const button = event.target.closest("[data-crop-ratio]");
   if (!button || !selectedCover) return;
-  const nextMode = safeTrim(button.dataset.cropRatio) || "free";
+  const nextMode = safeTrim(button.dataset.cropRatio) || "landscape";
   if (nextMode === selectedCover.aspectMode) return;
   selectedCover.aspectMode = nextMode;
   ensureCropMetrics(true);
@@ -2342,6 +2393,7 @@ try {
 renderCoverThumbs();
 updateLoginState();
 setCodeButtonState();
+updateLoginHint();
 
 (async () => {
   const oauthResult = new URLSearchParams(window.location.search).get("github_login");

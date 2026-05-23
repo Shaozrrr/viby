@@ -287,6 +287,14 @@ const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 
+const maskEmail = (value) => {
+  const email = normalizeEmail(value);
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) return email;
+  if (localPart.length <= 2) return `${localPart[0] || "*"}*@${domain}`;
+  return `${localPart.slice(0, 2)}***${localPart.slice(-1)}@${domain}`;
+};
+
 const emailLoginReady = () =>
   Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
 
@@ -336,8 +344,9 @@ const sendEmailOtp = async (to, code) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from,
+      from: from.includes("<") ? from : `Viby <${from}>`,
       to,
+      reply_to: from.includes("<") ? from.replace(/^.*<([^>]+)>.*$/, "$1") : from,
       subject: "你的 Viby 登录验证码",
       text: `你的 Viby 登录验证码是 ${code}。验证码 10 分钟内有效。`,
       html: `<div style="font-family:Arial,PingFang SC,Microsoft YaHei,sans-serif;padding:24px">
@@ -352,6 +361,9 @@ const sendEmailOtp = async (to, code) => {
     const body = await response.text().catch(() => "");
     throw new Error(`email_send_failed:${response.status}:${body}`);
   }
+
+  const payload = await response.json().catch(() => ({}));
+  return payload;
 };
 
 /** GitHub token 接口在失败时仍可能返回 HTTP 200 + JSON error 字段，须单独解析 */
@@ -538,8 +550,9 @@ const handleEmailSend = async (request, response) => {
 
   try {
     if (emailLoginReady()) {
-      await sendEmailOtp(email, code);
-      sendJson(response, 200, { ok: true }, { noStore: true });
+      const result = await sendEmailOtp(email, code);
+      console.log("[viby] email otp accepted", { email: maskEmail(email), id: result?.id || "" });
+      sendJson(response, 200, { ok: true, deliveredTo: maskEmail(email) }, { noStore: true });
       return;
     }
 
