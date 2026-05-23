@@ -35,6 +35,7 @@ const cropCounter = document.querySelector("#cropCounter");
 const cropZoom = document.querySelector("#cropZoom");
 const cropZoomValue = document.querySelector("#cropZoomValue");
 const cropResetButton = document.querySelector("[data-reset-crop]");
+const cropRatioGroup = document.querySelector("#cropRatioGroup");
 
 const detailOverlay = document.querySelector(".detail-overlay");
 const closeDetailButton = document.querySelector("[data-close-detail]");
@@ -47,6 +48,9 @@ const detailNavButtons = document.querySelectorAll("[data-detail-nav]");
 const detailType = document.querySelector("#detailType");
 const detailTitle = document.querySelector("#detailTitle");
 const detailDescription = document.querySelector("#detailDescription");
+const detailReleaseCard = document.querySelector("#detailReleaseCard");
+const detailVersionTag = document.querySelector("#detailVersionTag");
+const detailReleaseList = document.querySelector("#detailReleaseList");
 const detailAuthorCard = document.querySelector("#detailAuthorCard");
 const detailMeta = document.querySelector("#detailMeta");
 const detailLikes = document.querySelector("#detailLikes");
@@ -464,20 +468,24 @@ const normalizeWork = (work, index = 0) => {
           ? work.saves
           : 0;
   const likedBy = Array.isArray(work.likedBy) ? work.likedBy.filter(Boolean) : [];
-  const photos = Array.isArray(work.photos)
-    ? work.photos.filter(Boolean)
-    : work.cover
-      ? [work.cover]
-      : [];
+  const photos = dedupePhotos(
+    Array.isArray(work.photos) ? work.photos : work.cover ? [work.cover] : [],
+  );
+  const releaseNotes = Array.isArray(work.releaseNotes)
+    ? work.releaseNotes.map((item) => safeTrim(item)).filter(Boolean)
+    : parseReleaseNotes(work.releaseNotes);
 
   return {
     ...work,
     category: safeTrim(work.category) || "website",
     type: safeTrim(work.type) || (safeTrim(work.category) === "app" ? "App" : "Website"),
-    cover: safeTrim(work.cover) || photos[0] || "",
+    cover: photos[0] || safeTrim(work.cover) || "",
     photos,
     tool: safeTrim(work.tool === "Vibe coding" ? "" : work.tool),
     stack: safeTrim(work.stack) || "",
+    linkType: safeTrim(work.linkType).toLowerCase() === "appstore" ? "appstore" : "website",
+    versionTag: safeTrim(work.versionTag),
+    releaseNotes,
     devices:
       Array.isArray(work.devices) && work.devices.length
         ? work.devices
@@ -503,10 +511,17 @@ const saveUserWorks = () => {
   localStorage.setItem(
     storageKey,
     JSON.stringify(
-      works.filter((work) => work.isUserCreated).map((work) => ({
-        ...work,
-        likes: work.baseLikes + (work.likedBy?.length || 0),
-      })),
+      works.filter((work) => work.isUserCreated).map((work, index) =>
+        normalizeWork(
+          {
+            ...work,
+            cover: work.photos?.[0] || work.cover || "",
+            photos: dedupePhotos(work.photos),
+            likes: work.baseLikes + (work.likedBy?.length || 0),
+          },
+          index,
+        ),
+      ),
     ),
   );
 };
@@ -589,6 +604,13 @@ const showToast = (message) => {
   }, 2200);
 };
 
+const blurOverlayFocus = (overlay) => {
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && overlay?.contains(active)) {
+    active.blur();
+  }
+};
+
 const getTypeLabel = (category) => {
   const c = String(category || "");
   if (c.includes("website")) return "Website";
@@ -612,6 +634,23 @@ const sanitizeMetaLabel = (value) => {
   if (text.toLowerCase() === "live") return "";
   if (text.toLowerCase() === "v0") return "";
   return text;
+};
+
+const dedupePhotos = (photos) =>
+  [...new Set((Array.isArray(photos) ? photos : []).map((item) => safeTrim(item)).filter(Boolean))];
+
+const parseReleaseNotes = (value) =>
+  String(value || "")
+    .split("\n")
+    .map((line) => safeTrim(line.replace(/^[\-\u2022]\s*/, "")))
+    .filter(Boolean);
+
+const getPrimaryActionLabel = (work) =>
+  safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
+
+const isOwnWork = (work) => {
+  const user = getUser();
+  return Boolean(user && work && work.authorId && user.id === work.authorId);
 };
 
 const getSelectedDevices = () => {
@@ -709,9 +748,10 @@ const getRankedWorks = () => {
 const buildCardMetaItems = (work) => {
   const items = [
     (work.devices || ["电脑端"]).join(" / "),
+    safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
+    work.github ? "GitHub" : "",
     sanitizeMetaLabel(work.tool),
     sanitizeMetaLabel(work.stack),
-    work.github ? "GitHub" : "",
   ]
     .filter(Boolean)
     .filter((item, index, list) => list.indexOf(item) === index);
@@ -723,9 +763,10 @@ const buildDetailMetaItems = (work) => {
   const items = [
     getCategoryText(work.category),
     (work.devices || ["电脑端"]).join(" / "),
+    safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
+    work.github ? "GitHub" : "",
     sanitizeMetaLabel(work.tool),
     sanitizeMetaLabel(work.stack),
-    work.github ? "GitHub" : "",
   ]
     .filter(Boolean)
     .filter((item, index, list) => list.indexOf(item) === index);
@@ -771,7 +812,7 @@ const renderWorks = () => {
               </div>
             </div>
             <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
+              <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
               ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
               <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
             </div>
@@ -818,6 +859,7 @@ const openPanel = async () => {
 };
 
 const closePanel = () => {
+  blurOverlayFocus(panel);
   panel.classList.remove("is-open");
   panel.setAttribute("aria-hidden", "true");
 };
@@ -828,6 +870,7 @@ const openCropper = () => {
 };
 
 const closeCropper = () => {
+  blurOverlayFocus(coverCropper);
   coverCropper.classList.remove("is-open");
   coverCropper.setAttribute("aria-hidden", "true");
   cropPointerState = null;
@@ -839,6 +882,7 @@ const openLogin = () => {
 };
 
 const closeLogin = () => {
+  blurOverlayFocus(loginOverlay);
   loginOverlay.classList.remove("is-open");
   loginOverlay.setAttribute("aria-hidden", "true");
 };
@@ -894,6 +938,17 @@ const openDetail = (id, options = {}) => {
   detailType.textContent = work.type;
   detailTitle.textContent = work.title;
   detailDescription.textContent = work.description;
+  if (work.versionTag || work.releaseNotes?.length) {
+    detailReleaseCard.hidden = false;
+    detailVersionTag.textContent = work.versionTag || "最近一版";
+    detailReleaseList.innerHTML = (work.releaseNotes?.length ? work.releaseNotes : ["补充了这一版的细节打磨。"])
+      .map((item) => `<li>${escapeHTML(item)}</li>`)
+      .join("");
+  } else {
+    detailReleaseCard.hidden = true;
+    detailVersionTag.textContent = "";
+    detailReleaseList.innerHTML = "";
+  }
   detailAuthorCard.innerHTML = `
     <button type="button" class="detail-author-button" data-open-author="${work.id}">
       <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
@@ -910,9 +965,10 @@ const openDetail = (id, options = {}) => {
   detailViews.textContent = formatNumber(work.views);
   detailDate.textContent = formatDate(work.createdAt);
   detailActions.innerHTML = `
-    <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">访问作品</a>
+    <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
     ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
     <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
+    ${isOwnWork(work) ? `<button type="button" class="danger-link" data-delete-work="${work.id}">删除作品</button>` : ""}
   `;
 
   renderDetailGallery();
@@ -921,6 +977,7 @@ const openDetail = (id, options = {}) => {
 };
 
 const closeDetail = () => {
+  blurOverlayFocus(detailOverlay);
   detailOverlay.classList.remove("is-open");
   detailOverlay.setAttribute("aria-hidden", "true");
   activeDetailWorkId = "";
@@ -934,6 +991,26 @@ const stepDetailGallery = (direction) => {
   if (photos.length < 2) return;
   activeDetailPhotoIndex = (activeDetailPhotoIndex + direction + photos.length) % photos.length;
   renderDetailGallery();
+};
+
+const deleteWork = (id) => {
+  const work = works.find((item) => item.id === id);
+  if (!work || !isOwnWork(work)) return;
+  const confirmed = window.confirm(`确定删除《${work.title}》吗？删除后将无法恢复。`);
+  if (!confirmed) return;
+
+  works = works.filter((item) => item.id !== id);
+  saveUserWorks();
+  updateStats();
+  renderWorks();
+
+  if (activeProfileContext) {
+    activeProfileContext = buildProfileContext({ work });
+    if (activeProfileContext) renderProfilePanel();
+  }
+
+  closeDetail();
+  showToast("作品已删除");
 };
 
 const getWorksByAuthor = (context) => {
@@ -959,7 +1036,7 @@ const buildProfileContext = ({ work } = {}) => {
         ? "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。"
         : author.bio,
       footerNote: editable
-        ? "改完资料会同步到你发布的作品卡片和详情页。"
+        ? "改完资料会同步到你发布的作品卡片和详情页，也可以在作品详情里删除自己的作品。"
         : "这个主页只读，重点是让访客继续逛这位创作者的作品。",
       editable,
       works: getWorksByAuthor(author),
@@ -972,7 +1049,7 @@ const buildProfileContext = ({ work } = {}) => {
     ...author,
     email: currentUser.email || "",
     intro: "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。",
-    footerNote: "改完资料会同步到你发布的作品卡片和详情页。",
+    footerNote: "改完资料会同步到你发布的作品卡片和详情页，也可以在作品详情里删除自己的作品。",
     editable: true,
     works: works
       .filter((item) => item.isUserCreated && item.authorId === currentUser.id)
@@ -1028,6 +1105,7 @@ const renderProfilePanel = () => {
 };
 
 const closeProfile = () => {
+  blurOverlayFocus(profileOverlay);
   profileOverlay.classList.remove("is-open");
   profileOverlay.setAttribute("aria-hidden", "true");
   activeProfileContext = null;
@@ -1212,6 +1290,7 @@ const readImageFile = (file) =>
           src: reader.result,
           width: image.width,
           height: image.height,
+          aspectMode: "free",
           scale: 1,
           minScale: 1,
           maxScale: 3,
@@ -1230,6 +1309,28 @@ const getCropFrameSize = () => ({
   width: Math.max(coverFrame.clientWidth, 1),
   height: Math.max(coverFrame.clientHeight, 1),
 });
+
+const getCropAspectValue = (cover) => {
+  const mode = safeTrim(cover?.aspectMode) || "free";
+  if (mode === "landscape") return "16 / 9";
+  if (mode === "portrait") return "4 / 5";
+  if (mode === "square") return "1 / 1";
+  const width = Math.max(Number(cover?.width) || 1, 1);
+  const height = Math.max(Number(cover?.height) || 1, 1);
+  return `${width} / ${height}`;
+};
+
+const updateCropAspect = () => {
+  if (!selectedCover) return;
+  const aspectValue = getCropAspectValue(selectedCover);
+  coverFrame.style.aspectRatio = aspectValue;
+  cropRatioGroup?.querySelectorAll("[data-crop-ratio]").forEach((button) => {
+    button.classList.toggle(
+      "is-active",
+      button.dataset.cropRatio === (safeTrim(selectedCover.aspectMode) || "free"),
+    );
+  });
+};
 
 const centerSelectedCover = () => {
   if (!selectedCover) return;
@@ -1269,6 +1370,7 @@ const syncCropZoomUi = () => {
 
 const updateCropTransform = () => {
   if (!selectedCover) return;
+  updateCropAspect();
   coverPreview.style.width = `${selectedCover.width}px`;
   coverPreview.style.height = `${selectedCover.height}px`;
   coverPreview.style.transformOrigin = "top left";
@@ -1278,6 +1380,7 @@ const updateCropTransform = () => {
 
 const ensureCropMetrics = (resetPosition = false) => {
   if (!selectedCover) return;
+  updateCropAspect();
   const frame = getCropFrameSize();
   const nextMinScale = Math.max(frame.width / selectedCover.width, frame.height / selectedCover.height);
   const prevMinScale = selectedCover.minScale || nextMinScale;
@@ -1314,7 +1417,7 @@ const renderCoverThumbs = () => {
   const count = croppedCovers.length;
   coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
   coverHelperText.textContent = count
-    ? "点击“重裁”可以重新调整取景；点“设为封面”可以决定卡片首图。"
+    ? "点击“重裁”可以重新调整取景；点“设为首图”只会把它挪到第一张，不会复制出额外图片。"
     : "建议第一张放最能代表作品的页面，最多 5 张，别人看详情时会按顺序浏览。";
   coverClearButton.hidden = count === 0;
 
@@ -1334,16 +1437,16 @@ const renderCoverThumbs = () => {
         <div class="thumb-card ${index === 0 ? "is-cover" : ""}">
           <button class="thumb-preview" type="button" data-thumb-edit="${index}">
             <img src="${src}" alt="作品截图 ${index + 1}" />
-            <span class="thumb-badge">${index === 0 ? "封面" : `图 ${index + 1}`}</span>
+            <span class="thumb-badge">${index === 0 ? "首图" : `图 ${index + 1}`}</span>
           </button>
           <div class="thumb-meta">
-            <span>${index === 0 ? "卡片首图" : `详情第 ${index + 1} 张`}</span>
+            <span>${index === 0 ? "默认首图" : `详情第 ${index + 1} 张`}</span>
             <div class="thumb-mini-actions">
               <button class="thumb-action" type="button" data-thumb-edit="${index}">重裁</button>
               ${
                 index === 0
-                  ? `<button class="thumb-action is-current" type="button" disabled>当前封面</button>`
-                  : `<button class="thumb-action" type="button" data-thumb-cover="${index}">设为封面</button>`
+                  ? `<button class="thumb-action is-current" type="button" disabled>当前首图</button>`
+                  : `<button class="thumb-action" type="button" data-thumb-cover="${index}">设为首图</button>`
               }
               <button class="thumb-action destructive" type="button" data-thumb-remove="${index}">删除</button>
             </div>
@@ -1364,8 +1467,9 @@ const openCropAtIndex = () => {
     return;
   }
 
+  selectedCover.aspectMode = safeTrim(selectedCover.aspectMode) || "free";
   coverPreview.src = selectedCover.src;
-  cropStageLabel.textContent = editingCoverIndex !== null ? "重新裁剪" : "封面裁剪";
+  cropStageLabel.textContent = editingCoverIndex !== null ? "重新裁剪" : "截图裁剪";
   cropCounter.textContent =
     editingCoverIndex !== null
       ? `编辑第 ${editingCoverIndex + 1} 张`
@@ -1399,10 +1503,16 @@ const createCroppedCover = async () => {
   const sy = clamp((-selectedCover.offsetY) / scale, 0, image.height);
   const sw = clamp(frame.width / scale, 1, image.width - sx);
   const sh = clamp(frame.height / scale, 1, image.height - sy);
+  const aspectRatio = Math.max(sw / sh, 0.2);
 
   const canvas = document.createElement("canvas");
-  canvas.width = 1600;
-  canvas.height = 900;
+  if (aspectRatio >= 1) {
+    canvas.width = 1600;
+    canvas.height = Math.max(480, Math.round(canvas.width / aspectRatio));
+  } else {
+    canvas.height = 1600;
+    canvas.width = Math.max(640, Math.round(canvas.height * aspectRatio));
+  }
   const context = canvas.getContext("2d");
   context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.9);
@@ -1615,6 +1725,7 @@ detailAuthorCard.addEventListener("click", (event) => {
 detailActions.addEventListener("click", (event) => {
   const visitLink = event.target.closest("[data-visit]");
   const likeButton = event.target.closest("[data-like]");
+  const deleteButton = event.target.closest("[data-delete-work]");
 
   if (visitLink) {
     incrementViews(visitLink.dataset.visit);
@@ -1624,6 +1735,10 @@ detailActions.addEventListener("click", (event) => {
   if (likeButton && likeWork(likeButton.dataset.like)) {
     openDetail(likeButton.dataset.like, { photoIndex: activeDetailPhotoIndex });
     renderWorks();
+  }
+
+  if (deleteButton) {
+    deleteWork(deleteButton.dataset.deleteWork);
   }
 });
 
@@ -1705,7 +1820,21 @@ coverThumbs.addEventListener("click", (event) => {
   if (editButton) {
     editingCoverIndex = Number(editButton.dataset.thumbEdit);
     const source = sourceCovers[editingCoverIndex];
-    cropQueue = [source ? { ...source } : { src: croppedCovers[editingCoverIndex], width: 1600, height: 900, scale: 1, minScale: 1, maxScale: 3, offsetX: 0, offsetY: 0 }];
+    cropQueue = [
+      source
+        ? { ...source }
+        : {
+            src: croppedCovers[editingCoverIndex],
+            width: 1600,
+            height: 900,
+            aspectMode: "free",
+            scale: 1,
+            minScale: 1,
+            maxScale: 3,
+            offsetX: 0,
+            offsetY: 0,
+          },
+    ];
     cropIndex = 0;
     openCropAtIndex();
     return;
@@ -1718,7 +1847,7 @@ coverThumbs.addEventListener("click", (event) => {
     croppedCovers.unshift(nextCover);
     sourceCovers.unshift(nextSource);
     renderCoverThumbs();
-    showToast("已设为封面");
+    showToast("已设为首图");
     return;
   }
 
@@ -1790,6 +1919,15 @@ cropResetButton.addEventListener("click", () => {
   updateCropTransform();
 });
 
+cropRatioGroup?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-crop-ratio]");
+  if (!button || !selectedCover) return;
+  const nextMode = safeTrim(button.dataset.cropRatio) || "free";
+  if (nextMode === selectedCover.aspectMode) return;
+  selectedCover.aspectMode = nextMode;
+  ensureCropMetrics(true);
+});
+
 cancelCropButtons.forEach((button) => {
   button.addEventListener("click", () => cancelCropSession());
 });
@@ -1840,6 +1978,7 @@ submitForm.addEventListener("submit", async (event) => {
   const data = new FormData(submitForm);
   const category = safeTrim(data.get("category"));
   const stack = safeTrim(data.get("stack"));
+  const releaseNotes = parseReleaseNotes(data.get("releaseNotes"));
 
   const newWork = normalizeWork(
     {
@@ -1850,12 +1989,15 @@ submitForm.addEventListener("submit", async (event) => {
       github: safeTrim(data.get("github")),
       category,
       type: getTypeLabel(category),
+      linkType: safeTrim(data.get("linkType")),
       tool: safeTrim(data.get("tool")),
       stack,
+      versionTag: safeTrim(data.get("versionTag")),
+      releaseNotes,
       devices: getSelectedDevices(),
       visual: getVisualClass(works.length),
       cover: croppedCovers[0],
-      photos: [...croppedCovers],
+      photos: dedupePhotos(croppedCovers),
       createdAt: Date.now(),
       views: 0,
       likes: 0,

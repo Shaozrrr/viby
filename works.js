@@ -153,11 +153,18 @@ const sanitizeMetaLabel = (value) => {
   return text;
 };
 
+const dedupePhotos = (photos) =>
+  [...new Set((Array.isArray(photos) ? photos : []).map((item) => safeTrim(item)).filter(Boolean))];
+
+const getPrimaryActionLabel = (work) =>
+  safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
+
 const buildCardMetaItems = (work) => {
   const items = [
     (work.devices || ["电脑端"]).join(" / "),
-    sanitizeMetaLabel(work.type),
+    safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
     work.github ? "GitHub" : "",
+    sanitizeMetaLabel(work.type),
   ]
     .filter(Boolean)
     .filter((item, index, list) => list.indexOf(item) === index);
@@ -189,10 +196,12 @@ const getAuthorForWork = (work) => {
 
 const normalizeWork = (work, index) => {
   const fallbackAuthor = seedAuthors[index % seedAuthors.length];
+  const photos = dedupePhotos(Array.isArray(work.photos) ? work.photos : work.cover ? [work.cover] : []);
   return {
     ...work,
-    cover: safeTrim(work.cover),
-    photos: Array.isArray(work.photos) ? work.photos.filter(Boolean) : work.cover ? [work.cover] : [],
+    cover: photos[0] || safeTrim(work.cover),
+    photos,
+    linkType: safeTrim(work.linkType).toLowerCase() === "appstore" ? "appstore" : "website",
     devices: Array.isArray(work.devices) && work.devices.length ? work.devices : ["电脑端"],
     visual: safeTrim(work.visual) || ["visual-one", "visual-two", "visual-three"][index % 3],
     authorId: safeTrim(work.authorId) || fallbackAuthor.id,
@@ -246,7 +255,7 @@ const render = () => {
               </div>
             </div>
             <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer">访问作品</a>
+              <a href="${work.url}" target="_blank" rel="noreferrer">${getPrimaryActionLabel(work)}</a>
               ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
             </div>
           </div>

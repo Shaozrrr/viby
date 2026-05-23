@@ -193,15 +193,15 @@
         <button class="close-button" data-close-submit aria-label="关闭">×</button>
         <span class="section-kicker">New build</span>
         <h2>发布一个作品</h2>
-        <p>填写最必要的信息，提交后作品会立即进入作品流，并保存到当前浏览器。</p>
+        <p>填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。</p>
         <form id="submitForm">
           <label>
             作品名称
             <input name="title" type="text" placeholder="例如 灵感卡片" required />
           </label>
           <label>
-            作品链接
-            <input name="url" type="url" placeholder="https://your-demo.com" required />
+            访问链接
+            <input name="url" type="url" placeholder="网站链接或 App Store 链接" required />
           </label>
           <label>
             一句话简介
@@ -214,15 +214,20 @@
             </div>
             <input id="coverInput" name="cover" type="file" accept="image/*" multiple />
             <label class="cover-upload-card" for="coverInput" data-pick-cover>
-              <span class="cover-plus">+</span>
-              <span class="cover-copy">
+              <span class="cover-copy cover-copy-main">
+                <span class="cover-plus">+</span>
                 <strong>上传作品截图</strong>
-                <small>支持拖思路：先放图，再挑封面，再微调裁剪</small>
+                <small>支持横图、竖图和不同比例。首张默认作为首图，也可以稍后改顺序。</small>
+              </span>
+              <span class="cover-copy cover-copy-sub">
+                <span>自由裁切</span>
+                <span>最多 5 张</span>
+                <span>默认首图</span>
               </span>
               <img id="coverThumb" alt="已裁剪封面预览" hidden />
             </label>
             <p class="cover-upload-tip" id="coverHelperText">
-              建议第一张放最能代表作品的页面，最多 5 张，别人看详情时会按顺序浏览。
+              建议第一张放最能代表作品的页面。设为首图只会把它移到第一张，不会额外复制一份。
             </p>
             <div class="cover-thumbs" id="coverThumbs"></div>
           </div>
@@ -246,9 +251,29 @@
               <input name="tool" type="text" placeholder="Cursor / Claude Code" />
             </label>
           </div>
+          <div class="form-grid">
+            <label>
+              导流方式
+              <select name="linkType">
+                <option value="website">网站</option>
+                <option value="appstore">App Store</option>
+              </select>
+            </label>
+            <label>
+              版本号
+              <input name="versionTag" type="text" placeholder="例如 v1.3.0" />
+            </label>
+          </div>
           <label>
             技术栈
             <input name="stack" type="text" placeholder="React / Supabase / Cloudflare" />
+          </label>
+          <label>
+            本次版本迭代了什么
+            <textarea
+              name="releaseNotes"
+              placeholder="每行写一条，例如：&#10;优化竖图裁剪体验&#10;新增作者主页入口&#10;修复移动端适配"
+            ></textarea>
           </label>
           <label>
             GitHub 链接
@@ -264,7 +289,7 @@
         <button class="close-button" data-cancel-crop aria-label="关闭">×</button>
         <span class="section-kicker" id="cropStageLabel">Cover</span>
         <h2>调整截图取景</h2>
-        <p id="cropHint">拖动画面调整位置，用滚轮或滑杆缩放。Viby 会自动按 16:9 生成展示图。</p>
+        <p id="cropHint">拖动画面调整位置，用滚轮或滑杆缩放。你可以保留原比例，也可以切换成更适合展示的版式。</p>
         <div class="crop-shell">
           <div class="crop-frame" id="cropViewport">
             <div class="crop-guides" aria-hidden="true"></div>
@@ -274,6 +299,12 @@
             <div class="crop-metric">
               <strong id="cropCounter">1 / 1</strong>
               <span>当前截图</span>
+            </div>
+            <div class="crop-ratio-group" id="cropRatioGroup" aria-label="裁切比例">
+              <button class="crop-ratio-button is-active" type="button" data-crop-ratio="free">原比例</button>
+              <button class="crop-ratio-button" type="button" data-crop-ratio="landscape">横图</button>
+              <button class="crop-ratio-button" type="button" data-crop-ratio="portrait">竖图</button>
+              <button class="crop-ratio-button" type="button" data-crop-ratio="square">方图</button>
             </div>
             <label class="range-field">
               <span>缩放</span>
@@ -287,7 +318,7 @@
           </div>
         </div>
         <div class="crop-footer">
-          <p>封面会优先展示在作品卡片里，后续截图会进入详情画廊。</p>
+          <p>第一张截图会优先展示在作品卡片里，后续截图会按顺序进入详情画廊。</p>
           <button class="primary-button crop-confirm" type="button" data-confirm-crop>确认这一张</button>
         </div>
       </div>
@@ -400,6 +431,13 @@
           <span class="work-type" id="detailType"></span>
           <h2 id="detailTitle"></h2>
           <p id="detailDescription"></p>
+          <div class="detail-release-card" id="detailReleaseCard" hidden>
+            <div class="detail-release-head">
+              <strong id="detailVersionTag"></strong>
+              <span>版本迭代</span>
+            </div>
+            <ul id="detailReleaseList"></ul>
+          </div>
           <div class="detail-author-card" id="detailAuthorCard"></div>
           <div class="detail-meta" id="detailMeta"></div>
           <div class="detail-stats">
