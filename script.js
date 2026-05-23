@@ -56,6 +56,7 @@ const detailLikes = document.querySelector("#detailLikes");
 const detailViews = document.querySelector("#detailViews");
 const detailDate = document.querySelector("#detailDate");
 const detailActions = document.querySelector("#detailActions");
+const codeInput = loginForm.querySelector('[name="code"]');
 
 const profileOverlay = document.querySelector(".profile-overlay");
 const profileShell = document.querySelector(".profile-shell");
@@ -309,6 +310,8 @@ let activeDetailPhotoIndex = 0;
 let activeProfileContext = null;
 let activeReleaseExpanded = false;
 let activeReleaseEditing = false;
+let loginCooldownTimer = null;
+let loginCooldownUntil = 0;
 
 let vibyBackend = {
   checked: false,
@@ -613,6 +616,29 @@ const showToast = (message) => {
   }, 2200);
 };
 
+const setCodeButtonState = () => {
+  const remaining = Math.max(0, Math.ceil((loginCooldownUntil - Date.now()) / 1000));
+  if (remaining > 0) {
+    sendCodeButton.disabled = true;
+    sendCodeButton.textContent = `${remaining}s`;
+    return;
+  }
+  sendCodeButton.disabled = false;
+  sendCodeButton.textContent = "获取验证码";
+  loginCooldownUntil = 0;
+  if (loginCooldownTimer) {
+    window.clearInterval(loginCooldownTimer);
+    loginCooldownTimer = null;
+  }
+};
+
+const startCodeCooldown = (seconds = 60) => {
+  loginCooldownUntil = Date.now() + seconds * 1000;
+  setCodeButtonState();
+  if (loginCooldownTimer) window.clearInterval(loginCooldownTimer);
+  loginCooldownTimer = window.setInterval(setCodeButtonState, 1000);
+};
+
 const blurOverlayFocus = (overlay) => {
   const active = document.activeElement;
   if (active instanceof HTMLElement && overlay?.contains(active)) {
@@ -811,7 +837,6 @@ const renderDetailReleaseCard = (work) => {
         </button>
       </div>
       <div class="detail-release-popover is-open">
-        <div class="detail-release-popover-backdrop" data-release-close></div>
         <div class="detail-release-popover-card detail-release-popover-card-edit">
           <div class="detail-release-popover-head">
             <div>
@@ -856,7 +881,6 @@ const renderDetailReleaseCard = (work) => {
       activeReleaseExpanded
         ? `
       <div class="detail-release-popover is-open">
-        <div class="detail-release-popover-backdrop" data-release-close></div>
         <div class="detail-release-popover-card">
           <div class="detail-release-popover-head">
             <div>
@@ -1664,47 +1688,93 @@ loginOverlay.addEventListener("click", (event) => {
   if (event.target === loginOverlay) closeLogin();
 });
 
-sendCodeButton.addEventListener("click", () => {
+sendCodeButton.addEventListener("click", async () => {
   const email = safeTrim(new FormData(loginForm).get("email")).toLowerCase();
   if (!email) {
     showToast("先填写邮箱");
     return;
   }
 
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  localStorage.setItem(
-    emailCodeKey,
-    JSON.stringify({ email, code, expiresAt: Date.now() + 10 * 60 * 1000 }),
-  );
-  showToast(`验证码已发送：${code}`);
+  await ensureBackendProbe();
+  if (!vibyBackend.apiOnline) {
+    showToast("邮箱登录需要通过 Viby 后端服务，请用 npm start 启动后再试");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/auth/email/send", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showToast(data.error || "验证码发送失败，请稍后再试");
+      return;
+    }
+    startCodeCooldown(60);
+    if (codeInput) codeInput.focus();
+    if (data.devCode) {
+      showToast(`开发环境验证码：${data.devCode}`);
+    } else {
+      showToast("验证码已发送到你的邮箱");
+    }
+  } catch {
+    showToast("验证码发送失败，请检查网络后重试");
+  }
 });
 
-loginForm.addEventListener("submit", (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(loginForm);
   const email = safeTrim(data.get("email")).toLowerCase();
   const code = safeTrim(data.get("code"));
   if (!email || !code) return;
 
-  const storedCode = JSON.parse(localStorage.getItem(emailCodeKey) || "{}");
-  if (storedCode.email !== email || storedCode.code !== code || storedCode.expiresAt < Date.now()) {
-    showToast("验证码不正确或已过期");
+  await ensureBackendProbe();
+  if (!vibyBackend.apiOnline) {
+    showToast("邮箱登录需要通过 Viby 后端服务，请用 npm start 启动后再试");
     return;
   }
 
-  const accounts = getAccounts();
-  let account = accounts.find((item) => item.email === email);
-  if (!account) {
-    account = { id: `user-${Date.now()}`, email, createdAt: Date.now() };
-    accounts.push(account);
-    saveAccounts(accounts);
-  }
+  try {
+    const response = await fetch("/api/auth/email/verify", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      showToast(result.error || "验证码不正确或已过期");
+      return;
+    }
 
-  localStorage.setItem(authKey, JSON.stringify({ id: account.id, email: account.email }));
-  localStorage.removeItem(emailCodeKey);
-  updateLoginState();
-  closeLogin();
-  showToast(`欢迎回来，${email.split("@")[0]}`);
+    if (result.user) {
+      localStorage.setItem(
+        authKey,
+        JSON.stringify({
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          avatar: result.user.avatar,
+          provider: result.user.provider,
+        }),
+      );
+    } else {
+      await syncServerSession();
+    }
+
+    loginForm.reset();
+    updateLoginState();
+    closeLogin();
+    showToast(`欢迎回来，${email.split("@")[0]}`);
+  } catch {
+    showToast("登录失败，请稍后再试");
+  }
 });
 
 githubLoginButton.addEventListener("click", async () => {
@@ -1918,6 +1988,17 @@ detailReleaseCard?.addEventListener("click", (event) => {
     activeReleaseExpanded = true;
     renderDetailReleaseCard(work);
     showToast("版本记录已更新");
+  }
+});
+
+detailOverlay.addEventListener("click", (event) => {
+  if (!activeReleaseExpanded) return;
+  const clickedInsideRelease = event.target.closest("#detailReleaseCard");
+  if (!clickedInsideRelease && event.target !== closeDetailButton) {
+    activeReleaseExpanded = false;
+    activeReleaseEditing = false;
+    const work = works.find((item) => item.id === activeDetailWorkId);
+    if (work) renderDetailReleaseCard(work);
   }
 });
 
@@ -2260,6 +2341,7 @@ try {
 
 renderCoverThumbs();
 updateLoginState();
+setCodeButtonState();
 
 (async () => {
   const oauthResult = new URLSearchParams(window.location.search).get("github_login");

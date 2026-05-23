@@ -6,6 +6,7 @@ const path = require("path");
 const root = __dirname;
 const port = Number(process.env.PORT || 4184);
 const sessions = new Map();
+const emailCodes = new Map();
 const sessionDir = path.join(root, "data");
 const sessionFile = path.join(sessionDir, "sessions.json");
 
@@ -282,6 +283,77 @@ const fetchGitHubJson = async (url, options) => {
   return response.json();
 };
 
+const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+
+const emailLoginReady = () =>
+  Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim());
+
+const isLocalDevRequest = (request) => {
+  const host = requestHostname(request);
+  return !process.env.PUBLIC_ORIGIN?.trim() || host === "localhost" || host === "127.0.0.1";
+};
+
+const createEmailLoginUser = (email) => {
+  const normalized = normalizeEmail(email);
+  const localPart = normalized.split("@")[0] || "creator";
+  const digest = crypto.createHash("sha1").update(normalized).digest("hex").slice(0, 16);
+  const label = localPart.slice(0, 2).toUpperCase() || "V";
+  const avatar = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#5f3dff" />
+          <stop offset="100%" stop-color="#7edfff" />
+        </linearGradient>
+      </defs>
+      <rect width="160" height="160" rx="44" fill="url(#g)" />
+      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif"
+        font-size="54" font-weight="700" fill="white">${label}</text>
+    </svg>
+  `)}`;
+
+  return {
+    id: `email-${digest}`,
+    email: normalized,
+    name: localPart,
+    avatar,
+    provider: "email",
+  };
+};
+
+const sendEmailOtp = async (to, code) => {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.EMAIL_FROM?.trim();
+  if (!apiKey || !from) throw new Error("email_provider_not_configured");
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to,
+      subject: "你的 Viby 登录验证码",
+      text: `你的 Viby 登录验证码是 ${code}。验证码 10 分钟内有效。`,
+      html: `<div style="font-family:Arial,PingFang SC,Microsoft YaHei,sans-serif;padding:24px">
+        <h2 style="margin:0 0 12px;color:#12121d">登录 Viby</h2>
+        <p style="margin:0 0 16px;color:#565260">你的验证码如下，10 分钟内有效。</p>
+        <div style="display:inline-block;padding:12px 18px;border-radius:14px;background:#f5f2ff;color:#5f3dff;font-size:28px;font-weight:700;letter-spacing:0.18em">${code}</div>
+      </div>`,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`email_send_failed:${response.status}:${body}`);
+  }
+};
+
 /** GitHub token 接口在失败时仍可能返回 HTTP 200 + JSON error 字段，须单独解析 */
 const exchangeGitHubAccessToken = async (bodyParams) => {
   const response = await fetch("https://github.com/login/oauth/access_token", {
@@ -438,7 +510,105 @@ const handleHealth = (response) => {
   sendJson(response, 200, {
     ok: true,
     githubOAuthReady: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+    emailLoginReady: emailLoginReady(),
   }, { noStore: true });
+};
+
+const handleEmailSend = async (request, response) => {
+  let payload = {};
+  try {
+    payload = JSON.parse((await readRequestBody(request)) || "{}");
+  } catch {
+    sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
+    return;
+  }
+
+  const email = normalizeEmail(payload.email);
+  if (!isValidEmail(email)) {
+    sendJson(response, 400, { error: "请输入有效邮箱" }, { noStore: true });
+    return;
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  emailCodes.set(email, {
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    attempts: 0,
+  });
+
+  try {
+    if (emailLoginReady()) {
+      await sendEmailOtp(email, code);
+      sendJson(response, 200, { ok: true }, { noStore: true });
+      return;
+    }
+
+    if (isLocalDevRequest(request)) {
+      sendJson(response, 200, { ok: true, devCode: code }, { noStore: true });
+      return;
+    }
+
+    sendJson(
+      response,
+      503,
+      { error: "邮箱登录暂未配置发信服务，请先使用 GitHub 登录" },
+      { noStore: true },
+    );
+  } catch (error) {
+    console.warn("[viby] email send failed", error?.message || error);
+    sendJson(response, 502, { error: "验证码发送失败，请稍后再试" }, { noStore: true });
+  }
+};
+
+const handleEmailVerify = async (request, response) => {
+  let payload = {};
+  try {
+    payload = JSON.parse((await readRequestBody(request)) || "{}");
+  } catch {
+    sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
+    return;
+  }
+
+  const email = normalizeEmail(payload.email);
+  const code = String(payload.code || "").trim();
+  const record = emailCodes.get(email);
+
+  if (!isValidEmail(email) || !/^\d{6}$/.test(code) || !record) {
+    sendJson(response, 400, { error: "验证码不正确或已过期" }, { noStore: true });
+    return;
+  }
+
+  if (record.expiresAt < Date.now()) {
+    emailCodes.delete(email);
+    sendJson(response, 400, { error: "验证码不正确或已过期" }, { noStore: true });
+    return;
+  }
+
+  record.attempts += 1;
+  if (record.attempts > 8) {
+    emailCodes.delete(email);
+    sendJson(response, 429, { error: "尝试次数过多，请重新获取验证码" }, { noStore: true });
+    return;
+  }
+
+  if (record.code !== code) {
+    sendJson(response, 400, { error: "验证码不正确或已过期" }, { noStore: true });
+    return;
+  }
+
+  emailCodes.delete(email);
+  const user = createEmailLoginUser(email);
+  const sessionToken = signSessionUser(user);
+  const maxAgeSec = 2592000;
+  response.appendHeader(
+    "Set-Cookie",
+    `viby_session=${sessionToken}; ${cookieAttrsSessionHttpOnly(request)}; Max-Age=${maxAgeSec}`,
+  );
+  response.appendHeader(
+    "Set-Cookie",
+    `viby_session_js=${sessionToken}; ${cookieAttrsSessionReadable(request)}; Max-Age=${maxAgeSec}`,
+  );
+  sendJson(response, 200, { ok: true, user }, { noStore: true });
 };
 
 const handleLogout = (request, response) => {
@@ -533,6 +703,16 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "GET" && url.pathname === "/api/health") {
     handleHealth(response);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/auth/email/send") {
+    await handleEmailSend(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/auth/email/verify") {
+    await handleEmailVerify(request, response);
     return;
   }
 
