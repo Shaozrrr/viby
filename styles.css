@@ -1070,6 +1070,34 @@ label {
   font-weight: 700;
 }
 
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.field-badge.is-required {
+  color: #8a2f1f;
+  background: rgba(255, 118, 95, 0.14);
+}
+
+.field-badge.is-optional {
+  color: #5d5868;
+  background: rgba(20, 18, 27, 0.06);
+}
+
 input,
 textarea,
 select {
@@ -2055,6 +2083,7 @@ input[type="range"] {
   flex: 1;
   min-width: 160px;
   min-height: 48px;
+  padding: 0 22px;
   border: 0;
   border-radius: 999px;
   color: white;
@@ -2065,6 +2094,7 @@ input[type="range"] {
   font-size: 14px;
   font-weight: 720;
   letter-spacing: -0.01em;
+  text-align: center;
   cursor: pointer;
   transition:
     transform 180ms ease,
@@ -2077,23 +2107,29 @@ input[type="range"] {
 }
 
 .profile-logout-btn {
+  min-width: 160px;
   min-height: 48px;
-  padding: 0 20px;
+  padding: 0 22px;
   border: 1px solid rgba(20, 18, 27, 0.08);
   border-radius: 999px;
   color: var(--muted);
   background: rgba(255, 255, 255, 0.55);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 720;
+  text-align: center;
   cursor: pointer;
   transition:
     border-color 180ms ease,
-    color 180ms ease;
+    color 180ms ease,
+    transform 180ms ease,
+    background 180ms ease;
 }
 
 .profile-logout-btn:hover {
   border-color: rgba(20, 18, 27, 0.14);
   color: var(--ink);
+  background: rgba(255, 255, 255, 0.78);
+  transform: translateY(-1px);
 }
 
 @media (max-width: 900px) {

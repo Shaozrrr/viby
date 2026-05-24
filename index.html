@@ -196,15 +196,15 @@
         <p>填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。</p>
         <form id="submitForm">
           <label>
-            作品名称
+            <span class="field-label">作品名称 <em class="field-badge is-required">必填</em></span>
             <input name="title" type="text" placeholder="例如 灵感卡片" required />
           </label>
           <label>
-            访问链接
+            <span class="field-label">访问链接 <em class="field-badge is-required">必填</em></span>
             <input name="url" type="url" placeholder="网站链接或 App Store 链接" required />
           </label>
           <label>
-            一句话简介
+            <span class="field-label">一句话简介 <em class="field-badge is-required">必填</em></span>
             <textarea name="description" placeholder="它帮谁解决了什么问题？" required></textarea>
           </label>
           <div class="cover-upload">
@@ -217,7 +217,7 @@
               <span class="cover-copy cover-copy-main">
                 <span class="cover-plus">+</span>
                 <strong>上传作品截图</strong>
-                <small>支持横版和竖版两种常用展示比例。首张默认作为首图，也可以稍后改顺序。</small>
+                <small>支持横版与竖版两种常用展示比例，首张截图默认作为作品封面展示。</small>
               </span>
               <span class="cover-copy cover-copy-sub">
                 <span>横版 / 竖版</span>
@@ -227,7 +227,7 @@
               <img id="coverThumb" alt="已裁剪封面预览" hidden />
             </label>
             <p class="cover-upload-tip" id="coverHelperText">
-              建议第一张放最能代表作品的页面。设为首图只会把它移到第一张，不会额外复制一份。
+              建议优先上传最能代表作品核心体验的画面。设为首图仅调整展示顺序，不会生成重复截图。
             </p>
             <div class="cover-thumbs" id="coverThumbs"></div>
           </div>
@@ -240,36 +240,36 @@
           </fieldset>
           <div class="form-grid">
             <label>
-              分类
+              <span class="field-label">分类 <em class="field-badge is-optional">选填</em></span>
               <select name="category">
                 <option value="app">APP</option>
                 <option value="website">网站</option>
               </select>
             </label>
             <label>
-              AI 工具
+              <span class="field-label">AI 工具 <em class="field-badge is-optional">选填</em></span>
               <input name="tool" type="text" placeholder="Cursor / Claude Code" />
             </label>
           </div>
           <div class="form-grid">
             <label>
-              导流方式
+              <span class="field-label">导流方式 <em class="field-badge is-optional">选填</em></span>
               <select name="linkType">
                 <option value="website">网站</option>
                 <option value="appstore">App Store</option>
               </select>
             </label>
             <label>
-              版本号
+              <span class="field-label">版本号 <em class="field-badge is-optional">选填</em></span>
               <input name="versionTag" type="text" placeholder="例如 v1.3.0" />
             </label>
           </div>
           <label>
-            技术栈
+            <span class="field-label">技术栈 <em class="field-badge is-optional">选填</em></span>
             <input name="stack" type="text" placeholder="React / Supabase / Cloudflare" />
           </label>
           <label class="release-notes-field">
-            本次版本迭代了什么
+            <span class="field-label">本次版本迭代 <em class="field-badge is-optional">选填</em></span>
             <textarea
               name="releaseNotes"
               rows="6"
@@ -278,7 +278,7 @@
             <small class="field-note">例如：优化竖图裁剪体验 / 新增作者主页入口 / 修复移动端适配</small>
           </label>
           <label>
-            GitHub 链接
+            <span class="field-label">GitHub 链接 <em class="field-badge is-optional">选填</em></span>
             <input name="github" type="url" placeholder="https://github.com/..." />
           </label>
           <button type="submit" class="publish-button">发布作品</button>

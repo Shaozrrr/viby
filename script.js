@@ -457,7 +457,7 @@ const getProfilePresentation = (user) => {
   const avatarUrl = safeTrim(prefs.avatarDataUrl || user.avatar) || defaultAvatar;
   const handle = formatHandle((user.email || displayName).split("@")[0], displayName);
   const signature = safeTrim(
-    prefs.signature || "这是我的 Viby 创作者主页，欢迎继续逛我的作品。",
+    prefs.signature || "分享我最近完成的作品，也记录每一次认真迭代。",
   );
 
   return { displayName, avatarUrl, handle, signature };
@@ -857,9 +857,11 @@ const renderDetailReleaseCard = (work) => {
 
   const currentNotes = work.releaseNotes?.length ? work.releaseNotes : [];
   const currentVersion = work.versionTag || "";
-
-  const triggerLabel =
-    currentVersion || (currentNotes.length ? `${currentNotes.length} 条迭代` : "添加版本记录");
+  const triggerLabel = hasReleaseContent
+    ? currentVersion || `${currentNotes.length} 条版本记录`
+    : canEdit
+      ? "添加版本记录"
+      : "查看版本迭代";
 
   if (activeReleaseExpanded && activeReleaseEditing && canEdit) {
     detailReleaseCard.innerHTML = `
@@ -909,11 +911,6 @@ const renderDetailReleaseCard = (work) => {
         <span class="detail-release-trigger-kicker">版本迭代</span>
         <strong>${escapeHTML(triggerLabel)}</strong>
       </button>
-      ${
-        canEdit
-          ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "编辑记录" : "添加记录"}</button>`
-          : ""
-      }
     </div>
     ${
       activeReleaseExpanded
@@ -1624,8 +1621,8 @@ const renderCoverThumbs = () => {
   const count = croppedCovers.length;
   coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
   coverHelperText.textContent = count
-    ? "点击“重裁”可以重新调整横版或竖版取景；点“设为首图”只会把它挪到第一张，不会复制出额外图片。"
-    : "建议第一张放最能代表作品的页面。支持横版和竖版两种常用比例，别人看详情时会按顺序浏览。";
+    ? "如需重新调整展示取景，可点击“重裁”；设为首图仅调整展示顺序，不会生成重复截图。"
+    : "建议优先上传最能代表作品核心体验的画面。支持横版与竖版两种常用展示比例，详情页将按上传顺序依次呈现。";
   coverClearButton.hidden = count === 0;
 
   if (count) {
@@ -1923,7 +1920,7 @@ profileSaveButton.addEventListener("click", () => {
 
   const prefs = getProfilePrefs(user.id);
   const currentPresentation = getProfilePresentation(user);
-  const patch = { signature };
+  const patch = { signature: signature || "分享我最近完成的作品，也记录每一次认真迭代。" };
   const nextNameChanges = getRecentChangeTimestamps(prefs.nameChanges);
   const nextAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
 
