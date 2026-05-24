@@ -858,7 +858,7 @@ const renderDetailReleaseCard = (work) => {
   const currentNotes = work.releaseNotes?.length ? work.releaseNotes : [];
   const currentVersion = work.versionTag || "";
   const triggerLabel = hasReleaseContent
-    ? currentVersion || `${currentNotes.length} 条版本记录`
+    ? currentVersion || "查看版本迭代"
     : canEdit
       ? "添加版本记录"
       : "查看版本迭代";
@@ -2042,8 +2042,10 @@ detailActions.addEventListener("click", (event) => {
 });
 
 detailReleaseCard?.addEventListener("click", (event) => {
+  event.stopPropagation();
   const work = works.find((item) => item.id === activeDetailWorkId);
   if (!work) return;
+  const canEdit = isOwnWork(work);
   const hasReleaseContent = Boolean(work.versionTag || work.releaseNotes?.length);
 
   const toggleButton = event.target.closest("[data-release-toggle]");
@@ -2058,13 +2060,13 @@ detailReleaseCard?.addEventListener("click", (event) => {
       activeReleaseEditing = false;
     } else {
       activeReleaseExpanded = true;
-      activeReleaseEditing = Boolean(isOwnWork(work) && !hasReleaseContent);
+      activeReleaseEditing = Boolean(canEdit && !hasReleaseContent);
     }
     renderDetailReleaseCard(work);
     return;
   }
 
-  if (editButton && isOwnWork(work)) {
+  if (editButton && canEdit) {
     activeReleaseEditing = true;
     activeReleaseExpanded = true;
     renderDetailReleaseCard(work);
@@ -2073,6 +2075,7 @@ detailReleaseCard?.addEventListener("click", (event) => {
 
   if (cancelButton) {
     activeReleaseEditing = false;
+    activeReleaseExpanded = hasReleaseContent;
     renderDetailReleaseCard(work);
     return;
   }
@@ -2084,7 +2087,7 @@ detailReleaseCard?.addEventListener("click", (event) => {
     return;
   }
 
-  if (saveButton && isOwnWork(work)) {
+  if (saveButton && canEdit) {
     const versionInput = detailReleaseCard.querySelector("#detailReleaseVersionInput");
     const notesInput = detailReleaseCard.querySelector("#detailReleaseNotesInput");
     const saved = saveReleaseForWork(

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>更多作品 - Viby</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20260523a" />
+    <link rel="stylesheet" href="./styles.css?v=20260524c" />
   </head>
   <body class="works-page">
     <div class="grain" aria-hidden="true"></div>
@@ -27,18 +27,52 @@
           <div>
             <span class="section-kicker">More builds</span>
             <h2>更多 Viby 作品</h2>
-            <p>更适合慢慢逛的作品流，作者、设备、截图张数和访问入口都会直接展示。</p>
+            <p>支持按作品名称、简介、平台类型与 GitHub 条件检索，快速找到你感兴趣的创作。</p>
+          </div>
+        </div>
+        <div class="works-toolbar" aria-label="作品搜索与筛选">
+          <label class="works-search-field">
+            <span class="works-filter-label">搜索作品</span>
+            <input
+              id="worksSearchInput"
+              type="search"
+              placeholder="搜索作品名称、简介或创作者"
+              autocomplete="off"
+            />
+          </label>
+          <div class="works-filter-cluster">
+            <div class="works-filter-block">
+              <span class="works-filter-label">搜索范围</span>
+              <div class="works-chip-group" id="worksScopeGroup" role="group" aria-label="搜索范围">
+                <button type="button" class="works-chip is-active" data-search-scope="all">全部</button>
+                <button type="button" class="works-chip" data-search-scope="title">仅名称</button>
+                <button type="button" class="works-chip" data-search-scope="description">仅简介</button>
+              </div>
+            </div>
+            <div class="works-filter-block">
+              <span class="works-filter-label">作品类型</span>
+              <div class="works-chip-group" id="worksCategoryGroup" role="group" aria-label="作品类型">
+                <button type="button" class="works-chip is-active" data-category-filter="all">全部</button>
+                <button type="button" class="works-chip" data-category-filter="app">App</button>
+                <button type="button" class="works-chip" data-category-filter="website">网站</button>
+              </div>
+            </div>
+            <label class="works-toggle">
+              <input id="worksGithubOnly" type="checkbox" />
+              <span>仅看附带 GitHub 的作品</span>
+            </label>
+          </div>
+          <div class="works-toolbar-foot">
+            <p class="works-result-summary" id="worksResultSummary">正在整理作品列表…</p>
+            <button type="button" class="works-reset-button" id="worksResetFilters" hidden>清除筛选</button>
           </div>
         </div>
         <div class="work-grid" id="allWorksGrid" aria-live="polite"></div>
-        <p class="pagination-guide" id="paginationGuide">向下看完这一页后，点击下方按钮切换到第二页。</p>
-        <div class="pagination" aria-label="分页">
-          <button class="active" data-page="1">第一页</button>
-          <button data-page="2">第二页</button>
-        </div>
+        <p class="pagination-guide" id="paginationGuide">正在整理作品…</p>
+        <div class="pagination" id="worksPagination" aria-label="分页"></div>
       </section>
     </main>
 
-    <script src="./works.js?v=20260523a"></script>
+    <script src="./works.js?v=20260524c"></script>
   </body>
 </html>

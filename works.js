@@ -1,13 +1,26 @@
 const grid = document.querySelector("#allWorksGrid");
-const pageButtons = document.querySelectorAll("[data-page]");
+const pagination = document.querySelector("#worksPagination");
 const paginationGuide = document.querySelector("#paginationGuide");
+const searchInput = document.querySelector("#worksSearchInput");
+const resultSummary = document.querySelector("#worksResultSummary");
+const resetFiltersButton = document.querySelector("#worksResetFilters");
+const githubOnlyInput = document.querySelector("#worksGithubOnly");
+const scopeButtons = document.querySelectorAll("[data-search-scope]");
+const categoryButtons = document.querySelectorAll("[data-category-filter]");
 
 const storageKey = "viby-works";
 const authKey = "viby-user";
 const profilePrefsKey = "viby-profile-prefs";
 const oneDay = 24 * 60 * 60 * 1000;
+const pageSize = 9;
 
-let currentPage = 1;
+const viewState = {
+  page: 1,
+  query: "",
+  scope: "all",
+  category: "all",
+  githubOnly: false,
+};
 
 const safeTrim = (value) => String(value || "").trim();
 const escapeHTML = (value) =>
@@ -60,19 +73,19 @@ const seedAuthors = [
 ];
 
 const seedWorks = [
-  ["灵感卡片", "把一个产品想法整理成清晰的功能卡片和首屏文案。", "app", 42, 1280, 2, 0],
-  ["Form Echo", "给独立开发者用的轻量反馈收集组件。", "website", 67, 2104, 13, 1],
-  ["Tiny Invoice", "输入项目和金额，一键生成漂亮发票页面。", "website", 31, 1416, 35, 2],
-  ["Launch Desk", "整理发布清单、素材和复盘记录。", "website", 29, 842, 4, 1],
-  ["Habit Pulse", "一个轻量习惯追踪 APP，用柔和图表展示进展。", "app", 25, 733, 5, 0],
-  ["Note Garden", "把零散笔记变成可检索的个人知识花园。", "website", 34, 1012, 8, 2],
-  ["Fit Screen", "根据不同设备尺寸快速预览页面视觉效果。", "app", 18, 618, 18, 1],
-  ["Copy Room", "为产品页面生成多版本标题、卖点和行动按钮。", "website", 21, 940, 28, 0],
-  ["Mood Board", "收集截图和配色，生成一个轻量设计灵感板。", "website", 16, 512, 6, 2],
-  ["Focus Bell", "适合远程工作的番茄钟和提醒面板。", "app", 14, 460, 10, 1],
-  ["Mini CRM", "给个人创作者管理合作线索的小型客户表。", "website", 13, 386, 11, 0],
-  ["Pocket Plan", "把待办、日程和项目计划放进一个极简面板。", "app", 12, 320, 12, 2],
-].map(([title, description, category, likes, views, days, authorIndex], index) => {
+  ["灵感卡片", "把一个产品想法整理成清晰的功能卡片和首屏文案。", "app", 42, 1280, 2, 0, ""],
+  ["Form Echo", "给独立开发者用的轻量反馈收集组件。", "website", 67, 2104, 13, 1, "https://github.com/example/form-echo"],
+  ["Tiny Invoice", "输入项目和金额，一键生成漂亮发票页面。", "website", 31, 1416, 35, 2, ""],
+  ["Launch Desk", "整理发布清单、素材和复盘记录。", "website", 29, 842, 4, 1, ""],
+  ["Habit Pulse", "一个轻量习惯追踪 APP，用柔和图表展示进展。", "app", 25, 733, 5, 0, ""],
+  ["Note Garden", "把零散笔记变成可检索的个人知识花园。", "website", 34, 1012, 8, 2, "https://github.com/example/note-garden"],
+  ["Fit Screen", "根据不同设备尺寸快速预览页面视觉效果。", "app", 18, 618, 18, 1, ""],
+  ["Copy Room", "为产品页面生成多版本标题、卖点和行动按钮。", "website", 21, 940, 28, 0, ""],
+  ["Mood Board", "收集截图和配色，生成一个轻量设计灵感板。", "website", 16, 512, 6, 2, ""],
+  ["Focus Bell", "适合远程工作的番茄钟和提醒面板。", "app", 14, 460, 10, 1, ""],
+  ["Mini CRM", "给个人创作者管理合作线索的小型客户表。", "website", 13, 386, 11, 0, ""],
+  ["Pocket Plan", "把待办、日程和项目计划放进一个极简面板。", "app", 12, 320, 12, 2, ""],
+].map(([title, description, category, likes, views, days, authorIndex, github], index) => {
   const author = seedAuthors[authorIndex];
   return {
     id: `seed-${index}`,
@@ -81,7 +94,7 @@ const seedWorks = [
     category,
     type: category === "app" ? "App" : "Website",
     url: "https://example.com",
-    github: "",
+    github,
     devices: category === "app" ? ["手机端", "电脑端"] : ["电脑端"],
     visual: ["visual-one", "visual-two", "visual-three"][index % 3],
     cover: "",
@@ -143,7 +156,7 @@ const formatRelativeDate = (timestamp) => {
   return `${Math.floor(days / 30)} 个月前`;
 };
 
-const getCategoryText = (category) => (category === "app" ? "APP" : "网站");
+const getCategoryText = (category) => (safeTrim(category).toLowerCase() === "app" ? "APP" : "网站");
 
 const sanitizeMetaLabel = (value) => {
   const text = safeTrim(value);
@@ -201,6 +214,7 @@ const normalizeWork = (work, index) => {
     ...work,
     cover: photos[0] || safeTrim(work.cover),
     photos,
+    category: safeTrim(work.category).toLowerCase() === "website" ? "website" : "app",
     linkType: safeTrim(work.linkType).toLowerCase() === "appstore" ? "appstore" : "website",
     devices: Array.isArray(work.devices) && work.devices.length ? work.devices : ["电脑端"],
     visual: safeTrim(work.visual) || ["visual-one", "visual-two", "visual-three"][index % 3],
@@ -211,6 +225,7 @@ const normalizeWork = (work, index) => {
     likes: Number.isFinite(work.likes) ? work.likes : 0,
     views: Number.isFinite(work.views) ? work.views : 0,
     createdAt: Number.isFinite(work.createdAt) ? work.createdAt : Date.now(),
+    github: safeTrim(work.github),
   };
 };
 
@@ -218,69 +233,209 @@ const allWorks = [...getStoredWorks(), ...seedWorks]
   .map((work, index) => normalizeWork(work, index))
   .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-const render = () => {
-  const start = (currentPage - 1) * 9;
-  const works = allWorks.slice(start, start + 9);
-  grid.innerHTML = works
-    .map((work, index) => {
-      const author = getAuthorForWork(work);
-      const meta = buildCardMetaItems(work);
-      return `
-        <article class="work-card">
-          <div class="rank-badge">${start + index + 1}</div>
-          <div class="work-visual ${work.cover ? "has-cover" : work.visual}">
-            ${work.cover ? `<img src="${work.cover}" alt="${escapeHTML(work.title)} 封面" />` : ""}
-          </div>
-          <div class="work-content">
-            <div class="work-topline">
-              <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
-              <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
-            </div>
-            <div class="work-copy">
-              <h3>${escapeHTML(work.title)}</h3>
-              <p>${escapeHTML(work.description)}</p>
-            </div>
-            <div class="work-meta ${meta.length ? "" : "is-empty"}">
-              ${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}
-            </div>
-            <div class="work-author-row">
-              <div class="author-chip is-static">
-                <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
-                <span class="author-copy">
-                  <strong>${escapeHTML(author.displayName)}</strong>
-                  <small>${escapeHTML(author.handle)}</small>
-                </span>
-              </div>
-              <div class="work-stats-inline">
-                <span>${formatNumber(work.views)} 浏览</span>
-                <span>${formatNumber(work.likes)} 赞</span>
-              </div>
-            </div>
-            <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer">${getPrimaryActionLabel(work)}</a>
-              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
-            </div>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
+const matchesSearch = (work, query, scope) => {
+  if (!query) return true;
+  const normalizedQuery = query.toLowerCase();
+  const title = safeTrim(work.title).toLowerCase();
+  const description = safeTrim(work.description).toLowerCase();
+  const authorName = safeTrim(work.authorName).toLowerCase();
+  const tool = safeTrim(work.tool).toLowerCase();
+  const stack = safeTrim(work.stack).toLowerCase();
 
-  const totalPages = Math.ceil(allWorks.length / 9);
-  paginationGuide.textContent =
-    totalPages > 1
-      ? `当前第 ${currentPage} 页，共 ${totalPages} 页。作者信息和访问入口都已经直接展示在卡片里。`
-      : "当前已经展示全部作品。";
+  if (scope === "title") return title.includes(normalizedQuery);
+  if (scope === "description") return description.includes(normalizedQuery);
+
+  return [title, description, authorName, tool, stack].some((item) => item.includes(normalizedQuery));
 };
 
-pageButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentPage = Number(button.dataset.page);
-    pageButtons.forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    render();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+const getFilteredWorks = () =>
+  allWorks.filter((work) => {
+    if (viewState.category !== "all" && work.category !== viewState.category) return false;
+    if (viewState.githubOnly && !safeTrim(work.github)) return false;
+    if (!matchesSearch(work, viewState.query, viewState.scope)) return false;
+    return true;
   });
+
+const buildEmptyState = () => `
+  <article class="works-empty-state">
+    <span class="works-empty-kicker">No matching builds</span>
+    <h3>暂时没有符合条件的作品</h3>
+    <p>你可以放宽筛选条件，或清空搜索后重新浏览全部作品。</p>
+  </article>
+`;
+
+const buildWorkCard = (work, rank) => {
+  const author = getAuthorForWork(work);
+  const meta = buildCardMetaItems(work);
+  return `
+    <article class="work-card">
+      <div class="rank-badge">${rank}</div>
+      <div class="work-visual ${work.cover ? "has-cover" : work.visual}">
+        ${work.cover ? `<img src="${work.cover}" alt="${escapeHTML(work.title)} 封面" />` : ""}
+      </div>
+      <div class="work-content">
+        <div class="work-topline">
+          <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
+          <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
+        </div>
+        <div class="work-copy">
+          <h3>${escapeHTML(work.title)}</h3>
+          <p>${escapeHTML(work.description)}</p>
+        </div>
+        <div class="work-meta ${meta.length ? "" : "is-empty"}">
+          ${meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}
+        </div>
+        <div class="work-author-row">
+          <div class="author-chip is-static">
+            <img class="author-avatar" src="${author.avatarUrl}" alt="${escapeHTML(author.displayName)}" />
+            <span class="author-copy">
+              <strong>${escapeHTML(author.displayName)}</strong>
+              <small>${escapeHTML(author.handle)}</small>
+            </span>
+          </div>
+          <div class="work-stats-inline">
+            <span>${formatNumber(work.views)} 浏览</span>
+            <span>${formatNumber(work.likes)} 赞</span>
+          </div>
+        </div>
+        <div class="work-actions">
+          <a href="${work.url}" target="_blank" rel="noreferrer">${getPrimaryActionLabel(work)}</a>
+          ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+        </div>
+      </div>
+    </article>
+  `;
+};
+
+const renderPagination = (totalItems) => {
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  pagination.innerHTML = "";
+  pagination.hidden = totalItems <= pageSize;
+
+  if (pagination.hidden) return;
+
+  const buttons = [];
+  buttons.push(`<button type="button" data-page-nav="prev" ${viewState.page === 1 ? "disabled" : ""}>上一页</button>`);
+  for (let page = 1; page <= totalPages; page += 1) {
+    buttons.push(
+      `<button type="button" data-page="${page}" class="${page === viewState.page ? "active" : ""}">第 ${page} 页</button>`,
+    );
+  }
+  buttons.push(
+    `<button type="button" data-page-nav="next" ${viewState.page === totalPages ? "disabled" : ""}>下一页</button>`,
+  );
+  pagination.innerHTML = buttons.join("");
+};
+
+const renderSummary = (filteredWorks) => {
+  const totalPages = Math.max(1, Math.ceil(filteredWorks.length / pageSize));
+  const filterParts = [];
+
+  if (viewState.scope === "title") filterParts.push("仅按名称搜索");
+  if (viewState.scope === "description") filterParts.push("仅按简介搜索");
+  if (viewState.category === "app") filterParts.push("只看 App");
+  if (viewState.category === "website") filterParts.push("只看网站");
+  if (viewState.githubOnly) filterParts.push("只看附带 GitHub");
+
+  const hasFilters = Boolean(viewState.query || filterParts.length);
+  const suffix = hasFilters ? ` · ${filterParts.join(" / ") || "按条件筛选中"}` : "";
+
+  resultSummary.textContent = filteredWorks.length
+    ? `共找到 ${filteredWorks.length} 个作品 · 第 ${viewState.page} / ${totalPages} 页${suffix}`
+    : `当前没有符合条件的作品${suffix}`;
+
+  resetFiltersButton.hidden = !hasFilters;
+};
+
+const render = () => {
+  const filteredWorks = getFilteredWorks();
+  const totalPages = Math.max(1, Math.ceil(filteredWorks.length / pageSize));
+  if (viewState.page > totalPages) viewState.page = totalPages;
+
+  const start = (viewState.page - 1) * pageSize;
+  const pageItems = filteredWorks.slice(start, start + pageSize);
+
+  grid.innerHTML = pageItems.length
+    ? pageItems.map((work, index) => buildWorkCard(work, start + index + 1)).join("")
+    : buildEmptyState();
+
+  paginationGuide.textContent = filteredWorks.length
+    ? totalPages > 1
+      ? `当前第 ${viewState.page} 页，共 ${totalPages} 页。支持继续向后翻页浏览更多作品。`
+      : "当前筛选结果已完整展示。"
+    : "没有找到符合条件的作品，试试放宽筛选条件。";
+
+  renderSummary(filteredWorks);
+  renderPagination(filteredWorks.length);
+};
+
+const syncChipState = (buttons, key, value) => {
+  buttons.forEach((button) => {
+    button.classList.toggle("is-active", button.dataset[key] === value);
+  });
+};
+
+searchInput?.addEventListener("input", (event) => {
+  viewState.query = safeTrim(event.target.value);
+  viewState.page = 1;
+  render();
+});
+
+githubOnlyInput?.addEventListener("change", (event) => {
+  viewState.githubOnly = Boolean(event.target.checked);
+  viewState.page = 1;
+  render();
+});
+
+scopeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    viewState.scope = button.dataset.searchScope || "all";
+    viewState.page = 1;
+    syncChipState(scopeButtons, "searchScope", viewState.scope);
+    render();
+  });
+});
+
+categoryButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    viewState.category = button.dataset.categoryFilter || "all";
+    viewState.page = 1;
+    syncChipState(categoryButtons, "categoryFilter", viewState.category);
+    render();
+  });
+});
+
+resetFiltersButton?.addEventListener("click", () => {
+  viewState.page = 1;
+  viewState.query = "";
+  viewState.scope = "all";
+  viewState.category = "all";
+  viewState.githubOnly = false;
+
+  if (searchInput) searchInput.value = "";
+  if (githubOnlyInput) githubOnlyInput.checked = false;
+  syncChipState(scopeButtons, "searchScope", viewState.scope);
+  syncChipState(categoryButtons, "categoryFilter", viewState.category);
+  render();
+});
+
+pagination?.addEventListener("click", (event) => {
+  const pageButton = event.target.closest("[data-page]");
+  const navButton = event.target.closest("[data-page-nav]");
+  const totalPages = Math.max(1, Math.ceil(getFilteredWorks().length / pageSize));
+
+  if (pageButton) {
+    viewState.page = Number(pageButton.dataset.page);
+  } else if (navButton?.dataset.pageNav === "prev" && viewState.page > 1) {
+    viewState.page -= 1;
+  } else if (navButton?.dataset.pageNav === "next" && viewState.page < totalPages) {
+    viewState.page += 1;
+  } else {
+    return;
+  }
+
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
 render();
