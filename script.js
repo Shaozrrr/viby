@@ -58,6 +58,7 @@ const detailLikes = document.querySelector("#detailLikes");
 const detailViews = document.querySelector("#detailViews");
 const detailDate = document.querySelector("#detailDate");
 const detailActions = document.querySelector("#detailActions");
+const detailLinkWarning = document.querySelector("#detailLinkWarning");
 const codeInput = loginForm.querySelector('[name="code"]');
 
 const profileOverlay = document.querySelector(".profile-overlay");
@@ -126,178 +127,25 @@ const createAvatarDataUrl = (label, colorA, colorB) => {
   `);
 };
 
-const seedAuthors = [
-  {
-    id: "seed-author-ling",
-    name: "玲羽",
-    handle: "@lingyu-builds",
-    bio: "偏爱把模糊灵感做成能直接打开的小作品。",
-    avatar: createAvatarDataUrl("玲羽", "#7553ff", "#ff8a6c"),
-  },
-  {
-    id: "seed-author-mori",
-    name: "Mori Lab",
-    handle: "@mori-lab",
-    bio: "独立开发实验室，专注让工具更轻、更快、更顺手。",
-    avatar: createAvatarDataUrl("ML", "#111827", "#2dd4bf"),
-  },
-  {
-    id: "seed-author-zhou",
-    name: "周野",
-    handle: "@zhouye",
-    bio: "喜欢做很小但马上能用的产品切片。",
-    avatar: createAvatarDataUrl("周野", "#ef6b5c", "#8b5cf6"),
-  },
+const fallbackAvatarPalettes = [
+  ["#7553ff", "#ff8a6c"],
+  ["#111827", "#2dd4bf"],
+  ["#ef6b5c", "#8b5cf6"],
+  ["#4f46e5", "#22c55e"],
 ];
 
-const seedWorks = [
-  {
-    id: "briefly",
-    title: "灵感卡片",
-    description: "把一个产品想法整理成清晰的功能卡片和首屏文案。",
-    url: "https://example.com/briefly",
-    github: "",
-    category: "app",
-    type: "App",
-    tool: "Claude Code",
-    stack: "React",
-    visual: "visual-one",
-    cover: "",
-    createdAt: Date.now() - 2 * oneDay,
-    views: 1280,
-    likes: 42,
-    authorIndex: 0,
-  },
-  {
-    id: "form-echo",
-    title: "Form Echo",
-    description: "给独立开发者用的轻量反馈收集组件。",
-    url: "https://example.com/form-echo",
-    github: "https://github.com",
-    category: "website",
-    type: "Website",
-    tool: "Cursor",
-    stack: "GitHub",
-    visual: "visual-two",
-    cover: "",
-    createdAt: Date.now() - 13 * oneDay,
-    views: 2104,
-    likes: 67,
-    authorIndex: 1,
-  },
-  {
-    id: "tiny-invoice",
-    title: "Tiny Invoice",
-    description: "输入项目和金额，一键生成漂亮发票页面。",
-    url: "https://example.com/tiny-invoice",
-    github: "",
-    category: "website",
-    type: "Website",
-    tool: "v0",
-    stack: "Supabase",
-    visual: "visual-three",
-    cover: "",
-    createdAt: Date.now() - 35 * oneDay,
-    views: 1416,
-    likes: 31,
-    authorIndex: 2,
-  },
-  {
-    id: "launch-desk",
-    title: "Launch Desk",
-    description: "帮独立开发者整理发布清单、素材和复盘记录。",
-    url: "https://example.com/launch-desk",
-    github: "",
-    category: "website",
-    type: "Website",
-    tool: "Cursor",
-    stack: "Live",
-    visual: "visual-one",
-    cover: "",
-    createdAt: Date.now() - 4 * oneDay,
-    views: 842,
-    likes: 29,
-    authorIndex: 1,
-  },
-  {
-    id: "habit-pulse",
-    title: "Habit Pulse",
-    description: "一个轻量习惯追踪 APP，用柔和图表展示每天的进展。",
-    url: "https://example.com/habit-pulse",
-    github: "",
-    category: "app",
-    type: "App",
-    tool: "v0",
-    stack: "Live",
-    visual: "visual-two",
-    cover: "",
-    createdAt: Date.now() - 5 * oneDay,
-    views: 733,
-    likes: 25,
-    authorIndex: 0,
-  },
-  {
-    id: "note-garden",
-    title: "Note Garden",
-    description: "把零散笔记变成可检索的个人知识花园。",
-    url: "https://example.com/note-garden",
-    github: "",
-    category: "website",
-    type: "Website",
-    tool: "Claude Code",
-    stack: "Live",
-    visual: "visual-three",
-    cover: "",
-    createdAt: Date.now() - 8 * oneDay,
-    views: 1012,
-    likes: 34,
-    authorIndex: 2,
-  },
-  {
-    id: "fit-screen",
-    title: "Fit Screen",
-    description: "根据不同设备尺寸快速预览页面视觉效果。",
-    url: "https://example.com/fit-screen",
-    github: "",
-    category: "app",
-    type: "App",
-    tool: "Cursor",
-    stack: "Live",
-    visual: "visual-one",
-    cover: "",
-    createdAt: Date.now() - 18 * oneDay,
-    views: 618,
-    likes: 18,
-    authorIndex: 1,
-  },
-  {
-    id: "copy-room",
-    title: "Copy Room",
-    description: "为产品页面生成多版本标题、卖点和行动按钮。",
-    url: "https://example.com/copy-room",
-    github: "",
-    category: "website",
-    type: "Website",
-    tool: "Claude Code",
-    stack: "Live",
-    visual: "visual-two",
-    cover: "",
-    createdAt: Date.now() - 28 * oneDay,
-    views: 940,
-    likes: 21,
-    authorIndex: 0,
-  },
-].map((work) => {
-  const author = seedAuthors[work.authorIndex] || seedAuthors[0];
+const buildFallbackAuthor = (work = {}, index = 0) => {
+  const [colorA, colorB] = fallbackAvatarPalettes[index % fallbackAvatarPalettes.length];
+  const name = safeTrim(work.authorName) || "Viby 创作者";
+  const handle = formatHandle(work.authorHandle, name);
   return {
-    ...work,
-    authorId: author.id,
-    authorName: author.name,
-    authorAvatar: author.avatar,
-    authorHandle: author.handle,
-    authorBio: author.bio,
+    id: safeTrim(work.authorId) || `fallback-author-${index}`,
+    name,
+    handle,
+    bio: safeTrim(work.authorBio) || "这位创作者还没有留下更多介绍。",
+    avatar: safeTrim(work.authorAvatar) || createAvatarDataUrl(name.slice(0, 2), colorA, colorB),
   };
-});
+};
 
 let works = [];
 let activeRank = "latest";
@@ -495,7 +343,12 @@ const getVisualClass = (index) => ["visual-one", "visual-two", "visual-three"][i
 
 const normalizeWork = (work, index = 0) => {
   if (!work || typeof work !== "object") return null;
-  const fallbackAuthor = seedAuthors[index % seedAuthors.length];
+  const fallbackAuthor = buildFallbackAuthor(work, index);
+  const urlSafety = hydrateStoredLinkSafety(work.url, {
+    kind: "primary",
+    linkType: work.linkType,
+  });
+  const githubSafety = hydrateStoredLinkSafety(work.github, { kind: "github" });
   const baseLikes =
     Number.isFinite(work.baseLikes) && work.baseLikes >= 0
       ? work.baseLikes
@@ -518,6 +371,8 @@ const normalizeWork = (work, index = 0) => {
     type: safeTrim(work.type) || (safeTrim(work.category) === "app" ? "App" : "Website"),
     cover: photos[0] || safeTrim(work.cover) || "",
     photos,
+    url: urlSafety.normalized,
+    github: githubSafety.normalized,
     tool: safeTrim(work.tool === "Vibe coding" ? "" : work.tool),
     stack: safeTrim(work.stack) || "",
     linkType: safeTrim(work.linkType).toLowerCase() === "appstore" ? "appstore" : "website",
@@ -534,6 +389,18 @@ const normalizeWork = (work, index = 0) => {
     baseLikes,
     likedBy,
     likes: baseLikes + likedBy.length,
+    urlSafetyLevel:
+      safeTrim(work.urlSafetyLevel) === "caution" || urlSafety.level === "caution" ? "caution" : "normal",
+    urlSafetyReasons: dedupeTextList(
+      Array.isArray(work.urlSafetyReasons) && work.urlSafetyReasons.length ? work.urlSafetyReasons : urlSafety.reasons,
+    ),
+    githubSafetyLevel:
+      safeTrim(work.githubSafetyLevel) === "caution" || githubSafety.level === "caution" ? "caution" : "normal",
+    githubSafetyReasons: dedupeTextList(
+      Array.isArray(work.githubSafetyReasons) && work.githubSafetyReasons.length
+        ? work.githubSafetyReasons
+        : githubSafety.reasons,
+    ),
     visual: safeTrim(work.visual) || getVisualClass(index),
     authorId: safeTrim(work.authorId) || fallbackAuthor.id,
     authorName: safeTrim(work.authorName) || fallbackAuthor.name,
@@ -713,6 +580,135 @@ const parseReleaseNotes = (value) =>
     .map((line) => safeTrim(line.replace(/^[\-\u2022]\s*/, "")))
     .filter(Boolean);
 
+const isIpHost = (hostname) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+
+const isPrivateIpHost = (hostname) => {
+  if (!isIpHost(hostname)) return false;
+  const [a = 0, b = 0] = hostname.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  return a === 10 || a === 127 || a === 0 || (a === 192 && b === 168) || (a === 172 && b >= 16 && b <= 31);
+};
+
+const isGithubHost = (hostname) => ["github.com", "www.github.com", "gist.github.com"].includes(hostname);
+const isAppStoreHost = (hostname) => ["apps.apple.com", "appsto.re"].includes(hostname);
+
+const dedupeTextList = (items) =>
+  [...new Set((Array.isArray(items) ? items : []).map((item) => safeTrim(item)).filter(Boolean))];
+
+const analyzeExternalUrl = (value, { kind = "primary", linkType = "website", strict = true } = {}) => {
+  const raw = safeTrim(value);
+  if (!raw) return { ok: true, normalized: "", level: "normal", reasons: [], message: "" };
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return {
+      ok: false,
+      normalized: raw,
+      level: "blocked",
+      reasons: ["链接格式无效"],
+      message: "请填写完整且有效的链接地址",
+    };
+  }
+
+  const protocol = parsed.protocol.toLowerCase();
+  const hostname = parsed.hostname.toLowerCase();
+  const reasons = [];
+  const blockedProtocols = new Set(["javascript:", "data:", "file:", "vbscript:", "blob:", "about:"]);
+
+  if (blockedProtocols.has(protocol)) {
+    return {
+      ok: false,
+      normalized: raw,
+      level: "blocked",
+      reasons: ["链接协议不安全"],
+      message: "该链接协议存在安全风险，无法发布",
+    };
+  }
+
+  if (!["http:", "https:"].includes(protocol)) {
+    return {
+      ok: false,
+      normalized: raw,
+      level: "blocked",
+      reasons: ["仅支持 HTTP 或 HTTPS 链接"],
+      message: "目前仅支持 HTTP 或 HTTPS 链接",
+    };
+  }
+
+  if (parsed.username || parsed.password) reasons.push("链接中包含账号信息");
+  if (hostname.startsWith("xn--")) reasons.push("域名使用了转码字符");
+  if (isIpHost(hostname)) reasons.push("链接使用了 IP 地址");
+  if (isPrivateIpHost(hostname) || hostname === "localhost") {
+    return {
+      ok: false,
+      normalized: parsed.toString(),
+      level: "blocked",
+      reasons: ["链接指向本地或内网地址"],
+      message: "请填写其他用户也能访问的公开链接",
+    };
+  }
+
+  if (protocol !== "https:") reasons.push("链接未启用 HTTPS");
+  if (parsed.port && !["80", "443"].includes(parsed.port)) reasons.push("链接使用了非常见端口");
+
+  if (kind === "github" && !isGithubHost(hostname)) {
+    return {
+      ok: false,
+      normalized: parsed.toString(),
+      level: "blocked",
+      reasons: ["不是 GitHub 官方域名"],
+      message: "GitHub 链接请填写 github.com 或 gist.github.com 地址",
+    };
+  }
+
+  if (kind === "primary" && safeTrim(linkType).toLowerCase() === "appstore" && !isAppStoreHost(hostname)) {
+    reasons.push("导流方式为 App Store，但域名不是 App Store 官方地址");
+  }
+
+  if (kind === "primary" && safeTrim(linkType).toLowerCase() === "website" && hostname.endsWith(".app")) {
+    reasons.push("请确认该 App 域名指向的是公开网页而非安装包");
+  }
+
+  const level = reasons.length ? "caution" : "normal";
+  if (!strict) return { ok: true, normalized: parsed.toString(), level, reasons, message: "" };
+
+  return {
+    ok: true,
+    normalized: parsed.toString(),
+    level,
+    reasons,
+    message: level === "caution" ? "该链接已添加安全提醒，访客查看时会看到谨慎提示" : "",
+  };
+};
+
+const hydrateStoredLinkSafety = (value, options = {}) => {
+  const analysis = analyzeExternalUrl(value, { ...options, strict: false });
+  return {
+    normalized: safeTrim(analysis.normalized || value),
+    level: analysis.level,
+    reasons: dedupeTextList(analysis.reasons),
+  };
+};
+
+const buildLinkRiskSummary = (work) => {
+  const lines = [];
+  const urlReasons = dedupeTextList(work.urlSafetyReasons);
+  const githubReasons = dedupeTextList(work.githubSafetyReasons);
+
+  if (safeTrim(work.urlSafetyLevel) === "caution" && urlReasons.length) {
+    lines.push(`作品链接存在风险提示：${urlReasons.join("；")}`);
+  }
+
+  if (safeTrim(work.githubSafetyLevel) === "caution" && githubReasons.length) {
+    lines.push(`GitHub 链接存在风险提示：${githubReasons.join("；")}`);
+  }
+
+  return lines;
+};
+
+const hasLinkRisk = (work) => buildLinkRiskSummary(work).length > 0;
+
 const getPrimaryActionLabel = (work) =>
   safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
 
@@ -818,6 +814,7 @@ const buildCardMetaItems = (work) => {
     (work.devices || ["电脑端"]).join(" / "),
     safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
     work.github ? "GitHub" : "",
+    hasLinkRisk(work) ? "外链请谨慎" : "",
     sanitizeMetaLabel(work.tool),
     sanitizeMetaLabel(work.stack),
   ]
@@ -833,6 +830,7 @@ const buildDetailMetaItems = (work) => {
     (work.devices || ["电脑端"]).join(" / "),
     safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
     work.github ? "GitHub" : "",
+    hasLinkRisk(work) ? "外链请谨慎" : "",
     sanitizeMetaLabel(work.tool),
     sanitizeMetaLabel(work.stack),
   ]
@@ -932,7 +930,7 @@ const renderDetailReleaseCard = (work) => {
               currentNotes.length
                 ? `<ul>${currentNotes.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
                 : canEdit
-                  ? `<p>这一版还没写公开记录。点右上角“添加”，把这次更新补上。</p>`
+                  ? `<p>这一版还没写公开记录。点击“编辑版本记录”，把这次更新补上。</p>`
                   : `<p>这件作品暂时还没有公开版本记录。</p>`
             }
           </div>
@@ -944,9 +942,23 @@ const renderDetailReleaseCard = (work) => {
   `;
 };
 
+const buildHomepageEmptyState = () => `
+  <article class="works-empty-state works-empty-state-home">
+    <span class="works-empty-kicker">First official builds</span>
+    <h3>社区正在等待第一批正式作品</h3>
+    <p>去掉演示数据后，这里只展示真实发布的作品。现在发布第一件作品，首页就会开始生长。</p>
+  </article>
+`;
+
 const renderWorks = () => {
   const visibleWorks = getRankedWorks().slice(0, 6);
   const rankLabels = ["1", "2", "3"];
+
+  if (!visibleWorks.length) {
+    workGrid.innerHTML = buildHomepageEmptyState();
+    updateStats();
+    return;
+  }
 
   workGrid.innerHTML = visibleWorks
     .map((work, index) => {
@@ -984,8 +996,8 @@ const renderWorks = () => {
               </div>
             </div>
             <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
-              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+              <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
+              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
               <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
             </div>
           </div>
@@ -1129,11 +1141,21 @@ const openDetail = (id, options = {}) => {
   detailViews.textContent = formatNumber(work.views);
   detailDate.textContent = formatDetailDate(work.createdAt);
   detailActions.innerHTML = `
-    <a href="${work.url}" target="_blank" rel="noreferrer" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
-    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+    <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
+    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
     <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
     ${isOwnWork(work) ? `<button type="button" class="danger-link" data-delete-work="${work.id}">删除作品</button>` : ""}
   `;
+  const warningLines = buildLinkRiskSummary(work);
+  if (detailLinkWarning) {
+    if (warningLines.length) {
+      detailLinkWarning.hidden = false;
+      detailLinkWarning.innerHTML = warningLines.map((line) => escapeHTML(line)).join("<br />");
+    } else {
+      detailLinkWarning.hidden = true;
+      detailLinkWarning.textContent = "";
+    }
+  }
 
   renderDetailGallery();
   detailOverlay.classList.add("is-open");
@@ -1144,6 +1166,10 @@ const closeDetail = () => {
   blurOverlayFocus(detailOverlay);
   detailOverlay.classList.remove("is-open");
   detailOverlay.setAttribute("aria-hidden", "true");
+  if (detailLinkWarning) {
+    detailLinkWarning.hidden = true;
+    detailLinkWarning.textContent = "";
+  }
   activeDetailWorkId = "";
   activeDetailPhotoIndex = 0;
   activeReleaseExpanded = false;
@@ -1622,7 +1648,7 @@ const renderCoverThumbs = () => {
   coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
   coverHelperText.textContent = count
     ? "如需重新调整展示取景，可点击“重裁”；设为首图仅调整展示顺序，不会生成重复截图。"
-    : "建议优先上传最能代表作品核心体验的画面。支持横版与竖版两种常用展示比例，详情页将按上传顺序依次呈现。";
+    : "请优先上传最能代表作品核心体验的画面。支持横版与竖版两种常用展示比例，详情页会按上传顺序依次展示。";
   coverClearButton.hidden = count === 0;
 
   if (count) {
@@ -2344,19 +2370,39 @@ submitForm.addEventListener("submit", async (event) => {
   const author = buildCurrentUserAuthorSnapshot(user);
   const data = new FormData(submitForm);
   const category = safeTrim(data.get("category"));
+  const linkType = safeTrim(data.get("linkType"));
   const stack = safeTrim(data.get("stack"));
   const releaseNotes = parseReleaseNotes(data.get("releaseNotes"));
+  const urlAnalysis = analyzeExternalUrl(data.get("url"), {
+    kind: "primary",
+    linkType,
+  });
+  if (!urlAnalysis.ok) {
+    showToast(urlAnalysis.message || "访问链接存在问题，请检查后重试");
+    return;
+  }
+
+  const githubRaw = safeTrim(data.get("github"));
+  const githubAnalysis = githubRaw ? analyzeExternalUrl(githubRaw, { kind: "github" }) : null;
+  if (githubAnalysis && !githubAnalysis.ok) {
+    showToast(githubAnalysis.message || "GitHub 链接存在问题，请检查后重试");
+    return;
+  }
 
   const newWork = normalizeWork(
     {
       id: `work-${Date.now()}`,
       title: safeTrim(data.get("title")),
       description: safeTrim(data.get("description")),
-      url: safeTrim(data.get("url")),
-      github: safeTrim(data.get("github")),
+      url: urlAnalysis.normalized,
+      urlSafetyLevel: urlAnalysis.level,
+      urlSafetyReasons: urlAnalysis.reasons,
+      github: githubAnalysis?.normalized || "",
+      githubSafetyLevel: githubAnalysis?.level || "normal",
+      githubSafetyReasons: githubAnalysis?.reasons || [],
       category,
       type: getTypeLabel(category),
-      linkType: safeTrim(data.get("linkType")),
+      linkType,
       tool: safeTrim(data.get("tool")),
       stack,
       versionTag: safeTrim(data.get("versionTag")),
@@ -2397,7 +2443,7 @@ submitForm.addEventListener("submit", async (event) => {
   });
   renderWorks();
   closePanel();
-  showToast("作品已发布，已进入最新列表");
+  showToast(urlAnalysis.level === "caution" ? "作品已发布，并已为外链添加谨慎提示" : "作品已发布，已进入最新列表");
 });
 
 window.addEventListener("keydown", (event) => {
@@ -2429,19 +2475,20 @@ window.addEventListener("resize", () => {
   }
 });
 
-works = [
-  ...getStoredWorks()
-    .map((work, index) => normalizeWork(work, index))
-    .filter(Boolean),
-  ...seedWorks.map((work, index) => normalizeWork(work, index + 100)).filter(Boolean),
-];
+works = getStoredWorks()
+  .map((work, index) => normalizeWork(work, index))
+  .filter(Boolean)
+  .sort((a, b) => b.createdAt - a.createdAt);
 
 try {
   applyInteractions();
   renderWorks();
 } catch (error) {
-  console.error("[viby] 作品列表渲染失败，已回退为仅展示示例作品", error);
-  works = seedWorks.map((work, index) => normalizeWork(work, index + 100)).filter(Boolean);
+  console.error("[viby] 作品列表渲染失败", error);
+  works = getStoredWorks()
+    .map((work, index) => normalizeWork(work, index))
+    .filter(Boolean)
+    .sort((a, b) => b.createdAt - a.createdAt);
   applyInteractions();
   renderWorks();
 }

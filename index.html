@@ -9,7 +9,7 @@
     />
     <title>微步 Viby - Vibe Coding 作品社区</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20260524c" />
+    <link rel="stylesheet" href="./styles.css?v=20260525a" />
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -202,6 +202,7 @@
           <label>
             <span class="field-label">访问链接 <em class="field-badge is-required">必填</em></span>
             <input name="url" type="url" placeholder="网站链接或 App Store 链接" required />
+            <small class="field-note">仅支持公开可访问的网站或 App Store 链接。系统会拦截异常链接，并对可疑外链增加提醒标识。</small>
           </label>
           <label>
             <span class="field-label">一句话简介 <em class="field-badge is-required">必填</em></span>
@@ -227,7 +228,7 @@
               <img id="coverThumb" alt="已裁剪封面预览" hidden />
             </label>
             <p class="cover-upload-tip" id="coverHelperText">
-              建议优先上传最能代表作品核心体验的画面。设为首图仅调整展示顺序，不会生成重复截图。
+              请优先上传最能代表作品核心体验的画面。设为首图仅调整展示顺序，不会生成重复截图。
             </p>
             <div class="cover-thumbs" id="coverThumbs"></div>
           </div>
@@ -318,7 +319,7 @@
           </div>
         </div>
         <div class="crop-footer">
-          <p>第一张截图会优先展示在作品卡片里，后续截图会按顺序进入详情画廊。</p>
+          <p>首张截图会优先用于作品卡片展示，其余截图会按顺序进入详情画廊。</p>
           <button class="primary-button crop-confirm" type="button" data-confirm-crop>确认这一张</button>
         </div>
       </div>
@@ -449,6 +450,7 @@
             <div class="detail-stat detail-stat-date"><strong id="detailDate"></strong><span>发布</span></div>
           </div>
           <div class="work-actions detail-actions" id="detailActions"></div>
+          <p class="detail-link-warning" id="detailLinkWarning" hidden></p>
           <div class="detail-release-shell" id="detailReleaseShell" hidden>
             <div class="detail-release-card" id="detailReleaseCard"></div>
           </div>
@@ -458,6 +460,6 @@
 
     <div class="toast" role="status" aria-live="polite"></div>
 
-    <script src="./script.js?v=20260524c"></script>
+    <script src="./script.js?v=20260525a"></script>
   </body>
 </html>

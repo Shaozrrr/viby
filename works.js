@@ -51,63 +51,23 @@ const createAvatarDataUrl = (label, colorA, colorB) => {
   `);
 };
 
-const seedAuthors = [
-  {
-    id: "seed-author-ling",
-    name: "玲羽",
-    handle: "@lingyu-builds",
-    avatar: createAvatarDataUrl("玲羽", "#7553ff", "#ff8a6c"),
-  },
-  {
-    id: "seed-author-mori",
-    name: "Mori Lab",
-    handle: "@mori-lab",
-    avatar: createAvatarDataUrl("ML", "#111827", "#2dd4bf"),
-  },
-  {
-    id: "seed-author-zhou",
-    name: "周野",
-    handle: "@zhouye",
-    avatar: createAvatarDataUrl("周野", "#ef6b5c", "#8b5cf6"),
-  },
+const fallbackAvatarPalettes = [
+  ["#7553ff", "#ff8a6c"],
+  ["#111827", "#2dd4bf"],
+  ["#ef6b5c", "#8b5cf6"],
+  ["#4f46e5", "#22c55e"],
 ];
 
-const seedWorks = [
-  ["灵感卡片", "把一个产品想法整理成清晰的功能卡片和首屏文案。", "app", 42, 1280, 2, 0, ""],
-  ["Form Echo", "给独立开发者用的轻量反馈收集组件。", "website", 67, 2104, 13, 1, "https://github.com/example/form-echo"],
-  ["Tiny Invoice", "输入项目和金额，一键生成漂亮发票页面。", "website", 31, 1416, 35, 2, ""],
-  ["Launch Desk", "整理发布清单、素材和复盘记录。", "website", 29, 842, 4, 1, ""],
-  ["Habit Pulse", "一个轻量习惯追踪 APP，用柔和图表展示进展。", "app", 25, 733, 5, 0, ""],
-  ["Note Garden", "把零散笔记变成可检索的个人知识花园。", "website", 34, 1012, 8, 2, "https://github.com/example/note-garden"],
-  ["Fit Screen", "根据不同设备尺寸快速预览页面视觉效果。", "app", 18, 618, 18, 1, ""],
-  ["Copy Room", "为产品页面生成多版本标题、卖点和行动按钮。", "website", 21, 940, 28, 0, ""],
-  ["Mood Board", "收集截图和配色，生成一个轻量设计灵感板。", "website", 16, 512, 6, 2, ""],
-  ["Focus Bell", "适合远程工作的番茄钟和提醒面板。", "app", 14, 460, 10, 1, ""],
-  ["Mini CRM", "给个人创作者管理合作线索的小型客户表。", "website", 13, 386, 11, 0, ""],
-  ["Pocket Plan", "把待办、日程和项目计划放进一个极简面板。", "app", 12, 320, 12, 2, ""],
-].map(([title, description, category, likes, views, days, authorIndex, github], index) => {
-  const author = seedAuthors[authorIndex];
+const buildFallbackAuthor = (work = {}, index = 0) => {
+  const [colorA, colorB] = fallbackAvatarPalettes[index % fallbackAvatarPalettes.length];
+  const name = safeTrim(work.authorName) || "Viby 创作者";
   return {
-    id: `seed-${index}`,
-    title,
-    description,
-    category,
-    type: category === "app" ? "App" : "Website",
-    url: "https://example.com",
-    github,
-    devices: category === "app" ? ["手机端", "电脑端"] : ["电脑端"],
-    visual: ["visual-one", "visual-two", "visual-three"][index % 3],
-    cover: "",
-    photos: [],
-    createdAt: Date.now() - days * oneDay,
-    views,
-    likes,
-    authorId: author.id,
-    authorName: author.name,
-    authorAvatar: author.avatar,
-    authorHandle: author.handle,
+    id: safeTrim(work.authorId) || `fallback-author-${index}`,
+    name,
+    handle: formatHandle(work.authorHandle, name),
+    avatar: safeTrim(work.authorAvatar) || createAvatarDataUrl(name.slice(0, 2), colorA, colorB),
   };
-});
+};
 
 const getStoredWorks = () => {
   try {
@@ -157,6 +117,8 @@ const formatRelativeDate = (timestamp) => {
 };
 
 const getCategoryText = (category) => (safeTrim(category).toLowerCase() === "app" ? "APP" : "网站");
+const getPrimaryActionLabel = (work) =>
+  safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
 
 const sanitizeMetaLabel = (value) => {
   const text = safeTrim(value);
@@ -169,21 +131,49 @@ const sanitizeMetaLabel = (value) => {
 const dedupePhotos = (photos) =>
   [...new Set((Array.isArray(photos) ? photos : []).map((item) => safeTrim(item)).filter(Boolean))];
 
-const getPrimaryActionLabel = (work) =>
-  safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
+const dedupeTextList = (items) =>
+  [...new Set((Array.isArray(items) ? items : []).map((item) => safeTrim(item)).filter(Boolean))];
 
-const buildCardMetaItems = (work) => {
-  const items = [
-    (work.devices || ["电脑端"]).join(" / "),
-    safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
-    work.github ? "GitHub" : "",
-    sanitizeMetaLabel(work.type),
-  ]
-    .filter(Boolean)
-    .filter((item, index, list) => list.indexOf(item) === index);
+const isIpHost = (hostname) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+const isGithubHost = (hostname) => ["github.com", "www.github.com", "gist.github.com"].includes(hostname);
+const isAppStoreHost = (hostname) => ["apps.apple.com", "appsto.re"].includes(hostname);
 
-  return items.slice(0, 3);
+const analyzeExternalUrl = (value, { kind = "primary", linkType = "website" } = {}) => {
+  const raw = safeTrim(value);
+  if (!raw) return { normalized: "", level: "normal", reasons: [] };
+
+  try {
+    const parsed = new URL(raw);
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    const reasons = [];
+
+    if (["javascript:", "data:", "file:", "vbscript:", "blob:", "about:"].includes(protocol)) {
+      return { normalized: raw, level: "caution", reasons: ["链接协议异常"] };
+    }
+
+    if (parsed.username || parsed.password) reasons.push("链接中包含账号信息");
+    if (hostname.startsWith("xn--")) reasons.push("域名使用了转码字符");
+    if (isIpHost(hostname)) reasons.push("链接使用了 IP 地址");
+    if (protocol !== "https:") reasons.push("链接未启用 HTTPS");
+    if (parsed.port && !["80", "443"].includes(parsed.port)) reasons.push("链接使用了非常见端口");
+    if (kind === "github" && !isGithubHost(hostname)) reasons.push("不是 GitHub 官方域名");
+    if (kind === "primary" && safeTrim(linkType).toLowerCase() === "appstore" && !isAppStoreHost(hostname)) {
+      reasons.push("导流方式为 App Store，但域名不是 App Store 官方地址");
+    }
+
+    return {
+      normalized: parsed.toString(),
+      level: reasons.length ? "caution" : "normal",
+      reasons,
+    };
+  } catch {
+    return { normalized: raw, level: "caution", reasons: ["链接格式异常"] };
+  }
 };
+
+const hasLinkRisk = (work) =>
+  safeTrim(work.urlSafetyLevel) === "caution" || safeTrim(work.githubSafetyLevel) === "caution";
 
 const getAuthorForWork = (work) => {
   const currentUser = getUser();
@@ -208,8 +198,11 @@ const getAuthorForWork = (work) => {
 };
 
 const normalizeWork = (work, index) => {
-  const fallbackAuthor = seedAuthors[index % seedAuthors.length];
+  const fallbackAuthor = buildFallbackAuthor(work, index);
   const photos = dedupePhotos(Array.isArray(work.photos) ? work.photos : work.cover ? [work.cover] : []);
+  const urlSafety = analyzeExternalUrl(work.url, { kind: "primary", linkType: work.linkType });
+  const githubSafety = analyzeExternalUrl(work.github, { kind: "github" });
+
   return {
     ...work,
     cover: photos[0] || safeTrim(work.cover),
@@ -225,27 +218,68 @@ const normalizeWork = (work, index) => {
     likes: Number.isFinite(work.likes) ? work.likes : 0,
     views: Number.isFinite(work.views) ? work.views : 0,
     createdAt: Number.isFinite(work.createdAt) ? work.createdAt : Date.now(),
-    github: safeTrim(work.github),
+    github: safeTrim(githubSafety.normalized || work.github),
+    url: safeTrim(urlSafety.normalized || work.url),
+    urlSafetyLevel:
+      safeTrim(work.urlSafetyLevel) === "caution" || urlSafety.level === "caution" ? "caution" : "normal",
+    urlSafetyReasons: dedupeTextList(work.urlSafetyReasons?.length ? work.urlSafetyReasons : urlSafety.reasons),
+    githubSafetyLevel:
+      safeTrim(work.githubSafetyLevel) === "caution" || githubSafety.level === "caution" ? "caution" : "normal",
+    githubSafetyReasons: dedupeTextList(
+      work.githubSafetyReasons?.length ? work.githubSafetyReasons : githubSafety.reasons,
+    ),
+    tool: safeTrim(work.tool),
+    stack: safeTrim(work.stack),
   };
 };
 
-const allWorks = [...getStoredWorks(), ...seedWorks]
+const allWorks = getStoredWorks()
   .map((work, index) => normalizeWork(work, index))
   .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
+const normalizeSearchText = (value) =>
+  safeTrim(value)
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/\s+/g, " ");
+
+const fuzzySubsequence = (haystack, needle) => {
+  if (!needle) return true;
+  let matchIndex = 0;
+  for (const char of haystack) {
+    if (char === needle[matchIndex]) matchIndex += 1;
+    if (matchIndex === needle.length) return true;
+  }
+  return false;
+};
+
+const fuzzyIncludes = (haystack, query) => {
+  const source = normalizeSearchText(haystack);
+  const needle = normalizeSearchText(query);
+  if (!needle) return true;
+  if (source.includes(needle)) return true;
+
+  const compactSource = source.replace(/\s+/g, "");
+  const compactNeedle = needle.replace(/\s+/g, "");
+  if (compactSource.includes(compactNeedle)) return true;
+
+  const tokens = needle.split(" ").filter(Boolean);
+  if (tokens.length > 1 && tokens.every((token) => source.includes(token) || fuzzySubsequence(compactSource, token))) {
+    return true;
+  }
+
+  return fuzzySubsequence(compactSource, compactNeedle);
+};
+
 const matchesSearch = (work, query, scope) => {
   if (!query) return true;
-  const normalizedQuery = query.toLowerCase();
-  const title = safeTrim(work.title).toLowerCase();
-  const description = safeTrim(work.description).toLowerCase();
-  const authorName = safeTrim(work.authorName).toLowerCase();
-  const tool = safeTrim(work.tool).toLowerCase();
-  const stack = safeTrim(work.stack).toLowerCase();
+  const fields = {
+    title: [work.title],
+    description: [work.description],
+    all: [work.title, work.description, work.authorName, work.tool, work.stack],
+  };
 
-  if (scope === "title") return title.includes(normalizedQuery);
-  if (scope === "description") return description.includes(normalizedQuery);
-
-  return [title, description, authorName, tool, stack].some((item) => item.includes(normalizedQuery));
+  return (fields[scope] || fields.all).some((item) => fuzzyIncludes(item, query));
 };
 
 const getFilteredWorks = () =>
@@ -256,13 +290,27 @@ const getFilteredWorks = () =>
     return true;
   });
 
-const buildEmptyState = () => `
+const buildEmptyState = (hasWorks) => `
   <article class="works-empty-state">
-    <span class="works-empty-kicker">No matching builds</span>
-    <h3>暂时没有符合条件的作品</h3>
-    <p>你可以放宽筛选条件，或清空搜索后重新浏览全部作品。</p>
+    <span class="works-empty-kicker">${hasWorks ? "No matching builds" : "First official works"}</span>
+    <h3>${hasWorks ? "暂时没有符合条件的作品" : "这里暂时还没有正式发布的作品"}</h3>
+    <p>${hasWorks ? "你可以放宽筛选条件，或清空搜索后重新浏览全部作品。" : "占位演示作品已经移除。等真实用户发布后，这里会展示正式作品列表。"}</p>
   </article>
 `;
+
+const buildCardMetaItems = (work) => {
+  const items = [
+    (work.devices || ["电脑端"]).join(" / "),
+    safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
+    work.github ? "GitHub" : "",
+    hasLinkRisk(work) ? "外链请谨慎" : "",
+    sanitizeMetaLabel(work.type),
+  ]
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index);
+
+  return items.slice(0, 3);
+};
 
 const buildWorkCard = (work, rank) => {
   const author = getAuthorForWork(work);
@@ -299,8 +347,8 @@ const buildWorkCard = (work, rank) => {
           </div>
         </div>
         <div class="work-actions">
-          <a href="${work.url}" target="_blank" rel="noreferrer">${getPrimaryActionLabel(work)}</a>
-          ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer">GitHub</a>` : ""}
+          <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow">${getPrimaryActionLabel(work)}</a>
+          ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
         </div>
       </div>
     </article>
@@ -336,63 +384,63 @@ const renderSummary = (filteredWorks) => {
   if (viewState.category === "app") filterParts.push("只看 App");
   if (viewState.category === "website") filterParts.push("只看网站");
   if (viewState.githubOnly) filterParts.push("只看附带 GitHub");
+  if (viewState.query) filterParts.push(`模糊搜索“${viewState.query}”`);
 
-  const hasFilters = Boolean(viewState.query || filterParts.length);
-  const suffix = hasFilters ? ` · ${filterParts.join(" / ") || "按条件筛选中"}` : "";
-
+  const hasFilters = Boolean(filterParts.length);
   resultSummary.textContent = filteredWorks.length
-    ? `共找到 ${filteredWorks.length} 个作品 · 第 ${viewState.page} / ${totalPages} 页${suffix}`
-    : `当前没有符合条件的作品${suffix}`;
+    ? `共找到 ${filteredWorks.length} 个作品 · 第 ${viewState.page} / ${totalPages} 页${hasFilters ? ` · ${filterParts.join(" / ")}` : ""}`
+    : hasFilters
+      ? "当前筛选条件下没有匹配作品"
+      : "当前还没有正式发布的作品";
 
   resetFiltersButton.hidden = !hasFilters;
 };
 
-const render = () => {
+const renderGrid = () => {
   const filteredWorks = getFilteredWorks();
   const totalPages = Math.max(1, Math.ceil(filteredWorks.length / pageSize));
-  if (viewState.page > totalPages) viewState.page = totalPages;
-
+  viewState.page = Math.min(viewState.page, totalPages);
   const start = (viewState.page - 1) * pageSize;
-  const pageItems = filteredWorks.slice(start, start + pageSize);
-
-  grid.innerHTML = pageItems.length
-    ? pageItems.map((work, index) => buildWorkCard(work, start + index + 1)).join("")
-    : buildEmptyState();
-
-  paginationGuide.textContent = filteredWorks.length
-    ? totalPages > 1
-      ? `当前第 ${viewState.page} 页，共 ${totalPages} 页。支持继续向后翻页浏览更多作品。`
-      : "当前筛选结果已完整展示。"
-    : "没有找到符合条件的作品，试试放宽筛选条件。";
+  const items = filteredWorks.slice(start, start + pageSize);
 
   renderSummary(filteredWorks);
+  paginationGuide.textContent = filteredWorks.length
+    ? `按发布时间倒序展示，共 ${filteredWorks.length} 个结果。`
+    : allWorks.length
+      ? "可以尝试放宽筛选条件，查看更多作品。"
+      : "清理演示作品后，这里只展示真实发布的内容。";
+
+  grid.innerHTML = items.length
+    ? items.map((work, index) => buildWorkCard(work, start + index + 1)).join("")
+    : buildEmptyState(Boolean(allWorks.length));
+
   renderPagination(filteredWorks.length);
 };
 
-const syncChipState = (buttons, key, value) => {
+const syncButtons = (buttons, activeValue, dataKey) => {
   buttons.forEach((button) => {
-    button.classList.toggle("is-active", button.dataset[key] === value);
+    button.classList.toggle("is-active", button.dataset[dataKey] === activeValue);
   });
 };
 
-searchInput?.addEventListener("input", (event) => {
-  viewState.query = safeTrim(event.target.value);
+searchInput?.addEventListener("input", () => {
+  viewState.query = safeTrim(searchInput.value);
   viewState.page = 1;
-  render();
+  renderGrid();
 });
 
-githubOnlyInput?.addEventListener("change", (event) => {
-  viewState.githubOnly = Boolean(event.target.checked);
+githubOnlyInput?.addEventListener("change", () => {
+  viewState.githubOnly = githubOnlyInput.checked;
   viewState.page = 1;
-  render();
+  renderGrid();
 });
 
 scopeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     viewState.scope = button.dataset.searchScope || "all";
     viewState.page = 1;
-    syncChipState(scopeButtons, "searchScope", viewState.scope);
-    render();
+    syncButtons(scopeButtons, viewState.scope, "searchScope");
+    renderGrid();
   });
 });
 
@@ -400,23 +448,23 @@ categoryButtons.forEach((button) => {
   button.addEventListener("click", () => {
     viewState.category = button.dataset.categoryFilter || "all";
     viewState.page = 1;
-    syncChipState(categoryButtons, "categoryFilter", viewState.category);
-    render();
+    syncButtons(categoryButtons, viewState.category, "categoryFilter");
+    renderGrid();
   });
 });
 
 resetFiltersButton?.addEventListener("click", () => {
-  viewState.page = 1;
   viewState.query = "";
   viewState.scope = "all";
   viewState.category = "all";
   viewState.githubOnly = false;
+  viewState.page = 1;
 
   if (searchInput) searchInput.value = "";
   if (githubOnlyInput) githubOnlyInput.checked = false;
-  syncChipState(scopeButtons, "searchScope", viewState.scope);
-  syncChipState(categoryButtons, "categoryFilter", viewState.category);
-  render();
+  syncButtons(scopeButtons, "all", "searchScope");
+  syncButtons(categoryButtons, "all", "categoryFilter");
+  renderGrid();
 });
 
 pagination?.addEventListener("click", (event) => {
@@ -425,17 +473,20 @@ pagination?.addEventListener("click", (event) => {
   const totalPages = Math.max(1, Math.ceil(getFilteredWorks().length / pageSize));
 
   if (pageButton) {
-    viewState.page = Number(pageButton.dataset.page);
-  } else if (navButton?.dataset.pageNav === "prev" && viewState.page > 1) {
-    viewState.page -= 1;
-  } else if (navButton?.dataset.pageNav === "next" && viewState.page < totalPages) {
-    viewState.page += 1;
-  } else {
+    viewState.page = Number.parseInt(pageButton.dataset.page || "1", 10);
+    renderGrid();
     return;
   }
 
-  render();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (navButton) {
+    if (navButton.dataset.pageNav === "prev" && viewState.page > 1) {
+      viewState.page -= 1;
+    }
+    if (navButton.dataset.pageNav === "next" && viewState.page < totalPages) {
+      viewState.page += 1;
+    }
+    renderGrid();
+  }
 });
 
-render();
+renderGrid();

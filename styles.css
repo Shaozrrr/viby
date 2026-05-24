@@ -875,6 +875,11 @@ a {
   line-height: 1.7;
 }
 
+.works-empty-state-home {
+  min-height: 280px;
+  align-content: center;
+}
+
 .works-page .site-header {
   grid-template-columns: auto auto auto;
   justify-content: space-between;
@@ -1820,6 +1825,17 @@ input[type="range"] {
 
 .detail-actions {
   margin-top: 0;
+}
+
+.detail-link-warning {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(223, 157, 74, 0.2);
+  border-radius: 18px;
+  color: #7a5b2a;
+  background: linear-gradient(180deg, rgba(255, 249, 237, 0.92), rgba(255, 244, 221, 0.84));
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 .toast {
