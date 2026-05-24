@@ -70,6 +70,7 @@ const profileDisplayNameInput = document.querySelector("#profileDisplayName");
 const profileModeLine = document.querySelector("#profileModeLine");
 const profileEmailLine = document.querySelector("#profileEmailLine");
 const profileIntroLine = document.querySelector("#profileIntroLine");
+const profileProfileRuleLine = document.querySelector("#profileProfileRuleLine");
 const profileFooterNote = document.querySelector("#profileFooterNote");
 const profileStatWorksEl = document.querySelector("#profileStatWorks");
 const profileStatViewsEl = document.querySelector("#profileStatViews");
@@ -86,6 +87,7 @@ const accountsKey = "viby-accounts";
 const interactionsKey = "viby-interactions";
 const emailCodeKey = "viby-email-code";
 const oneDay = 24 * 60 * 60 * 1000;
+const oneMonthMs = 30 * oneDay;
 const defaultAvatar = "./logo-source.png";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -390,6 +392,18 @@ const setProfilePrefs = (userId, patch) => {
   localStorage.setItem(profilePrefsKey, JSON.stringify(map));
 };
 
+const getRecentChangeTimestamps = (list, limitMs = oneMonthMs) =>
+  (Array.isArray(list) ? list : [])
+    .map((item) => Number(item) || 0)
+    .filter((value) => value > Date.now() - limitMs)
+    .sort((a, b) => a - b);
+
+const buildProfileRuleHint = (prefs = {}) => {
+  const recentNameChanges = getRecentChangeTimestamps(prefs.nameChanges);
+  const recentAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
+  return `用户名每 30 天可改 1 次，剩余 ${Math.max(0, 1 - recentNameChanges.length)} 次；头像每 30 天可改 2 次，剩余 ${Math.max(0, 2 - recentAvatarChanges.length)} 次。`;
+};
+
 const getUser = () => {
   try {
     return JSON.parse(localStorage.getItem(authKey));
@@ -442,19 +456,22 @@ const getProfilePresentation = (user) => {
   );
   const avatarUrl = safeTrim(prefs.avatarDataUrl || user.avatar) || defaultAvatar;
   const handle = formatHandle((user.email || displayName).split("@")[0], displayName);
+  const signature = safeTrim(
+    prefs.signature || "这是我的 Viby 创作者主页，欢迎继续逛我的作品。",
+  );
 
-  return { displayName, avatarUrl, handle };
+  return { displayName, avatarUrl, handle, signature };
 };
 
 const buildCurrentUserAuthorSnapshot = (user = getUser()) => {
   if (!user) return null;
-  const { displayName, avatarUrl, handle } = getProfilePresentation(user);
+  const { displayName, avatarUrl, handle, signature } = getProfilePresentation(user);
   return {
     id: user.id,
     displayName,
     avatarUrl,
     handle,
-    bio: "这是我的 Viby 创作者主页，欢迎继续逛我的作品。",
+    bio: signature,
   };
 };
 
@@ -892,6 +909,11 @@ const renderDetailReleaseCard = (work) => {
         <span class="detail-release-trigger-kicker">版本迭代</span>
         <strong>${escapeHTML(triggerLabel)}</strong>
       </button>
+      ${
+        canEdit
+          ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "编辑记录" : "添加记录"}</button>`
+          : ""
+      }
     </div>
     ${
       activeReleaseExpanded
@@ -904,11 +926,7 @@ const renderDetailReleaseCard = (work) => {
               <strong>${escapeHTML(currentVersion || "最近更新")}</strong>
             </div>
             <div class="detail-release-popover-tools">
-              ${
-                canEdit
-                  ? `<button type="button" class="detail-release-mini" data-release-edit>${hasReleaseContent ? "编辑" : "添加"}</button>`
-                  : ""
-              }
+              ${canEdit ? `<button type="button" class="detail-release-mini" data-release-edit>编辑</button>` : ""}
               <button type="button" class="detail-release-icon" data-release-close aria-label="关闭">×</button>
             </div>
           </div>
@@ -1192,9 +1210,8 @@ const buildProfileContext = ({ work } = {}) => {
     return {
       ...author,
       email: editable ? currentUser.email || "" : author.handle,
-      intro: editable
-        ? "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。"
-        : author.bio,
+      intro: author.bio,
+      ruleHint: editable ? buildProfileRuleHint(getProfilePrefs(currentUser.id)) : "",
       footerNote: editable
         ? "改完资料会同步到你发布的作品卡片和详情页，也可以在作品详情里删除自己的作品。"
         : "这个主页只读，重点是让访客继续逛这位创作者的作品。",
@@ -1208,7 +1225,8 @@ const buildProfileContext = ({ work } = {}) => {
   return {
     ...author,
     email: currentUser.email || "",
-    intro: "这里会沉淀你的全部作品。别人点你的头像时，也会看到这个页面。",
+    intro: author.bio,
+    ruleHint: buildProfileRuleHint(getProfilePrefs(currentUser.id)),
     footerNote: "改完资料会同步到你发布的作品卡片和详情页，也可以在作品详情里删除自己的作品。",
     editable: true,
     works: works
@@ -1229,12 +1247,14 @@ const renderProfilePanel = () => {
   profileDisplayNameInput.value = context.displayName;
   profileDisplayNameInput.readOnly = !context.editable;
   profileAvatarInput.disabled = !context.editable;
+  profileIntroLine.value = context.intro || "";
+  profileIntroLine.readOnly = !context.editable;
   profileResetAvatarButton.hidden = !context.editable;
   profileSaveButton.hidden = !context.editable;
   profileLogoutButton.hidden = !context.editable;
   profileModeLine.textContent = context.editable ? "我的主页" : "创作者";
   profileEmailLine.textContent = context.editable ? context.email : context.handle;
-  profileIntroLine.textContent = context.intro;
+  profileProfileRuleLine.textContent = context.editable ? context.ruleHint || "" : "";
   profileFooterNote.textContent = context.footerNote;
   profileAvatarPreview.src = pendingProfileAvatar || context.avatarUrl || defaultAvatar;
   profileAvatarPreview.alt = context.displayName;
@@ -1861,6 +1881,15 @@ profileOverlay.addEventListener("click", (event) => {
 profileAvatarInput.addEventListener("change", async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
+  const user = getUser();
+  if (!user) return;
+  const prefs = getProfilePrefs(user.id);
+  const recentAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
+  if (recentAvatarChanges.length >= 2) {
+    showToast("头像每 30 天最多修改 2 次");
+    profileAvatarInput.value = "";
+    return;
+  }
   if (!file.type.startsWith("image/")) {
     showToast("请选择图片文件");
     profileAvatarInput.value = "";
@@ -1886,13 +1915,39 @@ profileSaveButton.addEventListener("click", () => {
   const user = getUser();
   if (!user) return;
   const name = safeTrim(profileDisplayNameInput.value);
+  const signature = safeTrim(profileIntroLine.value);
   if (!name) {
     showToast("请填写展示名称");
     return;
   }
 
-  const patch = { displayName: name };
-  if (pendingProfileAvatar) patch.avatarDataUrl = pendingProfileAvatar;
+  const prefs = getProfilePrefs(user.id);
+  const currentPresentation = getProfilePresentation(user);
+  const patch = { signature };
+  const nextNameChanges = getRecentChangeTimestamps(prefs.nameChanges);
+  const nextAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
+
+  if (name !== currentPresentation.displayName) {
+    if (nextNameChanges.length >= 1) {
+      showToast("用户名每 30 天只能修改 1 次");
+      return;
+    }
+    patch.displayName = name;
+    patch.nameChanges = [...nextNameChanges, Date.now()];
+  }
+
+  if (pendingProfileAvatar) {
+    if (nextAvatarChanges.length >= 2) {
+      showToast("头像每 30 天最多修改 2 次");
+      pendingProfileAvatar = null;
+      profileAvatarInput.value = "";
+      renderProfilePanel();
+      return;
+    }
+    patch.avatarDataUrl = pendingProfileAvatar;
+    patch.avatarChanges = [...nextAvatarChanges, Date.now()];
+  }
+
   setProfilePrefs(user.id, patch);
   pendingProfileAvatar = null;
   syncAuthoredWorksWithProfile(user);
@@ -1907,11 +1962,17 @@ profileResetAvatarButton.addEventListener("click", () => {
   const user = getUser();
   if (!user) return;
   const prefs = { ...getProfilePrefs(user.id) };
+  const recentAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
   if (!prefs.avatarDataUrl) {
     showToast("当前已是默认头像");
     return;
   }
+  if (recentAvatarChanges.length >= 2) {
+    showToast("头像每 30 天最多修改 2 次");
+    return;
+  }
   delete prefs.avatarDataUrl;
+  prefs.avatarChanges = [...recentAvatarChanges, Date.now()];
   const map = getProfilePrefsMap();
   map[user.id] = prefs;
   localStorage.setItem(profilePrefsKey, JSON.stringify(map));

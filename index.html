@@ -369,7 +369,17 @@
                 aria-label="展示名称"
               />
               <p id="profileEmailLine" class="profile-subline"></p>
-              <p id="profileIntroLine" class="profile-note"></p>
+              <label class="profile-signature-field">
+                <span class="profile-signature-label">个性签名</span>
+                <textarea
+                  id="profileIntroLine"
+                  class="profile-signature-input"
+                  maxlength="120"
+                  rows="3"
+                  placeholder="写一句你想让别人看到的介绍"
+                ></textarea>
+              </label>
+              <p id="profileProfileRuleLine" class="profile-note"></p>
               <div class="profile-aux">
                 <button type="button" class="profile-text-btn" data-profile-reset-avatar>恢复默认头像</button>
               </div>

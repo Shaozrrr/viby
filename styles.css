@@ -1043,13 +1043,17 @@ a {
   position: absolute;
   top: 18px;
   right: 18px;
+  display: grid;
+  place-items: center;
   width: 38px;
   height: 38px;
+  padding: 0;
   border-radius: 999px;
   color: var(--muted);
   background: rgba(20, 18, 27, 0.06);
   font-size: 22px;
-  line-height: 1;
+  line-height: 0;
+  text-align: center;
 }
 
 form {
@@ -1857,6 +1861,35 @@ input[type="range"] {
   color: var(--muted);
   font-size: 13px;
   letter-spacing: 0.02em;
+}
+
+.profile-signature-field {
+  margin-top: 12px;
+}
+
+.profile-signature-label {
+  color: rgba(95, 61, 255, 0.7);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.profile-signature-input {
+  min-height: 86px;
+  padding: 14px 16px;
+  border: 1px solid rgba(20, 18, 27, 0.07);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+}
+
+.profile-signature-input:focus {
+  border-color: rgba(95, 61, 255, 0.24);
+  box-shadow: 0 0 0 5px rgba(95, 61, 255, 0.08);
 }
 
 .profile-aux {
@@ -3095,12 +3128,16 @@ input[type="range"] {
 .detail-release-icon {
   width: 34px;
   height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border: 1px solid rgba(20, 18, 27, 0.08);
   border-radius: 999px;
   color: #4f4b58;
   background: rgba(255, 255, 255, 0.82);
   font-size: 20px;
-  line-height: 1;
+  line-height: 0;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -3196,6 +3233,7 @@ input[type="range"] {
 
 .profile-note {
   margin: 8px 0 0;
+  min-height: 20px;
 }
 
 .profile-shell.is-readonly .profile-avatar-orbit {
@@ -3204,6 +3242,11 @@ input[type="range"] {
 
 .profile-shell.is-readonly .profile-name-field {
   border-bottom-style: dashed;
+}
+
+.profile-shell.is-readonly .profile-signature-input {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .profile-footer {
