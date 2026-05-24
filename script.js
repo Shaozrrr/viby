@@ -2055,13 +2055,8 @@ detailReleaseCard?.addEventListener("click", (event) => {
   const closeButton = event.target.closest("[data-release-close]");
 
   if (toggleButton) {
-    if (activeReleaseExpanded) {
-      activeReleaseExpanded = false;
-      activeReleaseEditing = false;
-    } else {
-      activeReleaseExpanded = true;
-      activeReleaseEditing = Boolean(canEdit && !hasReleaseContent);
-    }
+    activeReleaseExpanded = true;
+    activeReleaseEditing = Boolean(canEdit && !hasReleaseContent);
     renderDetailReleaseCard(work);
     return;
   }
