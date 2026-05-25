@@ -944,9 +944,9 @@ const renderDetailReleaseCard = (work) => {
 
 const buildHomepageEmptyState = () => `
   <article class="works-empty-state works-empty-state-home">
-    <span class="works-empty-kicker">First official builds</span>
-    <h3>社区正在等待第一批正式作品</h3>
-    <p>去掉演示数据后，这里只展示真实发布的作品。现在发布第一件作品，首页就会开始生长。</p>
+    <span class="works-empty-kicker">Fresh builds</span>
+    <h3>首批作品正在陆续加入</h3>
+    <p>现在发布第一件作品，你的作品就会进入首页展示，也会沉淀到你的创作者主页。</p>
   </article>
 `;
 

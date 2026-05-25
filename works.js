@@ -292,9 +292,9 @@ const getFilteredWorks = () =>
 
 const buildEmptyState = (hasWorks) => `
   <article class="works-empty-state">
-    <span class="works-empty-kicker">${hasWorks ? "No matching builds" : "First official works"}</span>
-    <h3>${hasWorks ? "暂时没有符合条件的作品" : "这里暂时还没有正式发布的作品"}</h3>
-    <p>${hasWorks ? "你可以放宽筛选条件，或清空搜索后重新浏览全部作品。" : "占位演示作品已经移除。等真实用户发布后，这里会展示正式作品列表。"}</p>
+    <span class="works-empty-kicker">${hasWorks ? "No matching works" : "Fresh works"}</span>
+    <h3>${hasWorks ? "暂时没有符合条件的作品" : "这里很快会出现新的作品"}</h3>
+    <p>${hasWorks ? "你可以放宽筛选条件，或清空搜索后重新浏览全部作品。" : "首批作品正在陆续加入，欢迎继续浏览，或发布你的作品让更多人看见。"}</p>
   </article>
 `;
 
@@ -408,7 +408,7 @@ const renderGrid = () => {
     ? `按发布时间倒序展示，共 ${filteredWorks.length} 个结果。`
     : allWorks.length
       ? "可以尝试放宽筛选条件，查看更多作品。"
-      : "清理演示作品后，这里只展示真实发布的内容。";
+      : "首批作品正在陆续加入，欢迎稍后再来看看。";
 
   grid.innerHTML = items.length
     ? items.map((work, index) => buildWorkCard(work, start + index + 1)).join("")
