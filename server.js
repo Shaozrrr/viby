@@ -6,9 +6,11 @@ const path = require("path");
 const root = __dirname;
 const port = Number(process.env.PORT || 4184);
 const sessions = new Map();
+const shares = new Map();
 const emailCodes = new Map();
 const sessionDir = path.join(root, "data");
 const sessionFile = path.join(sessionDir, "sessions.json");
+const shareFile = path.join(sessionDir, "shares.json");
 
 const persistSessions = () => {
   try {
@@ -33,6 +35,30 @@ const loadSessions = () => {
 };
 
 loadSessions();
+
+const persistShares = () => {
+  try {
+    if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
+    fs.writeFileSync(shareFile, JSON.stringify(Object.fromEntries(shares), null, 2), "utf8");
+  } catch (e) {
+    console.warn("[viby] persist shares:", e.message);
+  }
+};
+
+const loadShares = () => {
+  try {
+    if (!fs.existsSync(shareFile)) return;
+    const parsed = JSON.parse(fs.readFileSync(shareFile, "utf8"));
+    if (!parsed || typeof parsed !== "object") return;
+    Object.entries(parsed).forEach(([id, payload]) => {
+      if (payload && typeof payload === "object") shares.set(id, payload);
+    });
+  } catch (e) {
+    console.warn("[viby] load shares:", e.message);
+  }
+};
+
+loadShares();
 
 const loadEnv = () => {
   const envPath = path.join(root, ".env");
@@ -526,6 +552,98 @@ const handleHealth = (response) => {
   }, { noStore: true });
 };
 
+const normalizeSharePayload = (payload = {}) => {
+  const kind = payload.kind === "profile" ? "profile" : "work";
+  const template = ["aurora", "paper", "noir"].includes(payload.template) ? payload.template : "aurora";
+
+  if (kind === "profile") {
+    return {
+      kind,
+      template,
+      title: String(payload.title || "").slice(0, 80),
+      description: String(payload.description || "").slice(0, 240),
+      author: {
+        name: String(payload.author?.name || "").slice(0, 80),
+        handle: String(payload.author?.handle || "").slice(0, 80),
+        avatar: String(payload.author?.avatar || ""),
+      },
+      stats: {
+        works: Number(payload.stats?.works) || 0,
+        views: Number(payload.stats?.views) || 0,
+        likes: Number(payload.stats?.likes) || 0,
+      },
+      worksPreview: Array.isArray(payload.worksPreview)
+        ? payload.worksPreview.slice(0, 3).map((item) => ({
+            title: String(item?.title || "").slice(0, 80),
+            cover: String(item?.cover || ""),
+            category: String(item?.category || "").slice(0, 24),
+          }))
+        : [],
+      libraryUrl: String(payload.libraryUrl || ""),
+    };
+  }
+
+  return {
+    kind,
+    template,
+    title: String(payload.title || "").slice(0, 80),
+    description: String(payload.description || "").slice(0, 240),
+    category: String(payload.category || "").slice(0, 24),
+    cover: String(payload.cover || ""),
+    meta: Array.isArray(payload.meta) ? payload.meta.slice(0, 4).map((item) => String(item || "").slice(0, 40)) : [],
+    versionTag: String(payload.versionTag || "").slice(0, 32),
+    author: {
+      name: String(payload.author?.name || "").slice(0, 80),
+      handle: String(payload.author?.handle || "").slice(0, 80),
+      avatar: String(payload.author?.avatar || ""),
+    },
+    primaryUrl: String(payload.primaryUrl || ""),
+    primaryLabel: String(payload.primaryLabel || "").slice(0, 40),
+    github: String(payload.github || ""),
+    createdAt: Number(payload.createdAt) || Date.now(),
+  };
+};
+
+const handleCreateShare = async (request, response) => {
+  let payload = {};
+  try {
+    payload = JSON.parse((await readRequestBody(request)) || "{}");
+  } catch {
+    sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
+    return;
+  }
+
+  const normalized = normalizeSharePayload(payload);
+  if (!normalized.title) {
+    sendJson(response, 400, { error: "缺少分享标题" }, { noStore: true });
+    return;
+  }
+
+  const bodySize = Buffer.byteLength(JSON.stringify(normalized), "utf8");
+  if (bodySize > 8 * 1024 * 1024) {
+    sendJson(response, 413, { error: "分享内容过大，请减少截图后重试" }, { noStore: true });
+    return;
+  }
+
+  const id = crypto.randomBytes(9).toString("base64url");
+  shares.set(id, {
+    ...normalized,
+    id,
+    createdAt: Date.now(),
+  });
+  persistShares();
+  sendJson(response, 200, { ok: true, id, url: `/share.html?id=${encodeURIComponent(id)}` }, { noStore: true });
+};
+
+const handleGetShare = (response, id) => {
+  const record = shares.get(id);
+  if (!record) {
+    sendJson(response, 404, { error: "未找到这条分享记录" }, { noStore: true });
+    return;
+  }
+  sendJson(response, 200, { share: record }, { noStore: true });
+};
+
 const handleEmailSend = async (request, response) => {
   let payload = {};
   try {
@@ -732,6 +850,17 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "POST" && url.pathname === "/api/logout") {
     await readRequestBody(request);
     handleLogout(request, response);
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/shares") {
+    await handleCreateShare(request, response);
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname.startsWith("/api/shares/")) {
+    const shareId = decodeURIComponent(url.pathname.slice("/api/shares/".length));
+    handleGetShare(response, shareId);
     return;
   }
 

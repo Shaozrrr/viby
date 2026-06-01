@@ -9,7 +9,7 @@
     />
     <title>微步 Viby - Vibe Coding 作品社区</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20260525c" />
+    <link rel="stylesheet" href="./styles.css?v=20260525d" />
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -191,9 +191,9 @@
     <aside class="submit-panel" aria-hidden="true" aria-label="提交作品面板">
       <div class="panel-card">
         <button class="close-button" data-close-submit aria-label="关闭">×</button>
-        <span class="section-kicker">New build</span>
-        <h2>发布一个作品</h2>
-        <p>填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。</p>
+        <span class="section-kicker" id="panelEyeline">New build</span>
+        <h2 id="panelTitle">发布一个作品</h2>
+        <p id="panelDescription">填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。</p>
         <form id="submitForm">
           <label>
             <span class="field-label">作品名称 <em class="field-badge is-required">必填</em></span>
@@ -214,6 +214,7 @@
               <button class="cover-clear-button" id="coverClearButton" type="button" hidden>清空</button>
             </div>
             <input id="coverInput" name="cover" type="file" accept="image/*" multiple />
+            <input id="replaceCoverInput" type="file" accept="image/*" hidden />
             <label class="cover-upload-card" for="coverInput" data-pick-cover>
               <span class="cover-copy cover-copy-main">
                 <span class="cover-plus">+</span>
@@ -282,7 +283,7 @@
             <span class="field-label">GitHub 链接 <em class="field-badge is-optional">选填</em></span>
             <input name="github" type="url" placeholder="https://github.com/..." />
           </label>
-          <button type="submit" class="publish-button">发布作品</button>
+          <button type="submit" class="publish-button" id="submitWorkButton">发布作品</button>
         </form>
       </div>
     </aside>
@@ -408,11 +409,13 @@
               <span class="profile-gallery-rule" aria-hidden="true"></span>
             </h3>
             <div id="profileWorksGrid" class="profile-works-grid"></div>
+            <button type="button" class="profile-library-btn" id="profileLibraryButton" hidden>进入作品库</button>
           </section>
 
           <footer class="profile-footer">
             <p class="profile-footer-note" id="profileFooterNote"></p>
             <div class="profile-footer-actions">
+              <button type="button" class="profile-share-btn" data-profile-share>分享主页</button>
               <button type="button" class="profile-save-btn" data-profile-save>保存资料</button>
               <button type="button" class="profile-logout-btn" data-profile-logout>退出登录</button>
             </div>
@@ -458,8 +461,42 @@
       </article>
     </aside>
 
+    <aside class="share-overlay" aria-hidden="true" aria-label="分享页面">
+      <div class="share-shell">
+        <button class="close-button share-close" type="button" data-close-share aria-label="关闭">×</button>
+        <span class="section-kicker" id="shareEyeline">Share</span>
+        <h2 id="shareTitleLine">生成分享页</h2>
+        <p id="shareIntroLine">选择一个模板，为你的主页或作品生成专属分享页。生成后可以直接预览、复制链接或系统分享。</p>
+        <div class="share-template-grid" id="shareTemplateGrid" role="group" aria-label="分享模板">
+          <button type="button" class="share-template-button is-active" data-share-template="aurora">
+            <span class="share-template-swatch share-template-swatch-aurora"></span>
+            <strong>流光</strong>
+            <small>柔和、清透，适合作品展示</small>
+          </button>
+          <button type="button" class="share-template-button" data-share-template="paper">
+            <span class="share-template-swatch share-template-swatch-paper"></span>
+            <strong>画报</strong>
+            <small>明亮、杂志感，更适合主页介绍</small>
+          </button>
+          <button type="button" class="share-template-button" data-share-template="noir">
+            <span class="share-template-swatch share-template-swatch-noir"></span>
+            <strong>夜幕</strong>
+            <small>深色、克制，适合高对比封面</small>
+          </button>
+        </div>
+        <div class="share-preview-wrap">
+          <div class="share-preview-card share-template-aurora" id="sharePreviewCard"></div>
+        </div>
+        <div class="share-actions">
+          <button type="button" class="share-action-button primary" data-share-open>预览分享页</button>
+          <button type="button" class="share-action-button" data-share-copy>复制分享链接</button>
+          <button type="button" class="share-action-button" data-share-native>系统分享</button>
+        </div>
+      </div>
+    </aside>
+
     <div class="toast" role="status" aria-live="polite"></div>
 
-    <script src="./script.js?v=20260525b"></script>
+    <script src="./script.js?v=20260525d"></script>
   </body>
 </html>

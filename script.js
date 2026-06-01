@@ -19,12 +19,17 @@ const statLikes = document.querySelector("#statLikes");
 const toast = document.querySelector(".toast");
 
 const coverInput = submitForm.querySelector('[name="cover"]');
+const replaceCoverInput = document.querySelector("#replaceCoverInput");
 const pickCoverButton = document.querySelector("[data-pick-cover]");
 const coverThumb = document.querySelector("#coverThumb");
 const coverThumbs = document.querySelector("#coverThumbs");
 const coverCountText = document.querySelector("#coverCountText");
 const coverHelperText = document.querySelector("#coverHelperText");
 const coverClearButton = document.querySelector("#coverClearButton");
+const panelEyeline = document.querySelector("#panelEyeline");
+const panelTitle = document.querySelector("#panelTitle");
+const panelDescription = document.querySelector("#panelDescription");
+const submitWorkButton = document.querySelector("#submitWorkButton");
 
 const coverCropper = document.querySelector("#coverCropper");
 const coverPreview = document.querySelector("#coverPreview");
@@ -77,9 +82,22 @@ const profileStatWorksEl = document.querySelector("#profileStatWorks");
 const profileStatViewsEl = document.querySelector("#profileStatViews");
 const profileStatLikesEl = document.querySelector("#profileStatLikes");
 const profileWorksGrid = document.querySelector("#profileWorksGrid");
+const profileLibraryButton = document.querySelector("#profileLibraryButton");
 const profileSaveButton = document.querySelector("[data-profile-save]");
+const profileShareButton = document.querySelector("[data-profile-share]");
 const profileLogoutButton = document.querySelector("[data-profile-logout]");
 const profileResetAvatarButton = document.querySelector("[data-profile-reset-avatar]");
+
+const shareOverlay = document.querySelector(".share-overlay");
+const closeShareButton = document.querySelector("[data-close-share]");
+const shareTemplateGrid = document.querySelector("#shareTemplateGrid");
+const sharePreviewCard = document.querySelector("#sharePreviewCard");
+const shareEyeline = document.querySelector("#shareEyeline");
+const shareTitleLine = document.querySelector("#shareTitleLine");
+const shareIntroLine = document.querySelector("#shareIntroLine");
+const shareOpenButton = document.querySelector("[data-share-open]");
+const shareCopyButton = document.querySelector("[data-share-copy]");
+const shareNativeButton = document.querySelector("[data-share-native]");
 
 const storageKey = "viby-works";
 const authKey = "viby-user";
@@ -155,6 +173,8 @@ let cropIndex = 0;
 let croppedCovers = [];
 let sourceCovers = [];
 let editingCoverIndex = null;
+let replacingCoverIndex = null;
+let editingWorkId = "";
 let cropPointerState = null;
 let pendingProfileAvatar = null;
 let activeDetailWorkId = "";
@@ -162,6 +182,8 @@ let activeDetailPhotoIndex = 0;
 let activeProfileContext = null;
 let activeReleaseExpanded = false;
 let activeReleaseEditing = false;
+let activeShareContext = null;
+let activeShareTemplate = "aurora";
 let loginCooldownTimer = null;
 let loginCooldownUntil = 0;
 
@@ -579,6 +601,35 @@ const parseReleaseNotes = (value) =>
     .split("\n")
     .map((line) => safeTrim(line.replace(/^[\-\u2022]\s*/, "")))
     .filter(Boolean);
+
+const readImageSource = (src) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => {
+      resolve({
+        src,
+        width: image.width,
+        height: image.height,
+        aspectMode: getPreferredCropMode(image.width, image.height),
+        scale: 1,
+        minScale: 1,
+        maxScale: 3,
+        offsetX: 0,
+        offsetY: 0,
+      });
+    });
+    image.addEventListener("error", reject);
+    image.src = src;
+  });
+
+const buildWorksLibraryUrl = (context = {}) => {
+  const base = new URL("./works.html", window.location.href);
+  if (context.id) base.searchParams.set("author", context.id);
+  if (context.displayName) base.searchParams.set("name", context.displayName);
+  return `${base.pathname}${base.search}`;
+};
+
+const getAbsolutePathUrl = (pathValue) => new URL(pathValue, window.location.href).toString();
 
 const isIpHost = (hostname) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
 
@@ -1030,12 +1081,95 @@ const updateLoginState = () => {
   }
 };
 
-const openPanel = async () => {
+const syncSubmitPanelMode = () => {
+  const editingWork = editingWorkId ? works.find((item) => item.id === editingWorkId) : null;
+  const isEditing = Boolean(editingWork);
+  if (panelEyeline) panelEyeline.textContent = isEditing ? "Edit build" : "New build";
+  if (panelTitle) panelTitle.textContent = isEditing ? "修改这件作品" : "发布一个作品";
+  if (panelDescription) {
+    panelDescription.textContent = isEditing
+      ? "你可以更新作品信息、替换截图、重新调整首图顺序，保存后会直接同步到当前作品。"
+      : "填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。";
+  }
+  if (submitWorkButton) submitWorkButton.textContent = isEditing ? "保存修改" : "发布作品";
+};
+
+const resetSubmitDraft = () => {
+  submitForm.reset();
+  croppedCovers = [];
+  sourceCovers = [];
+  cropQueue = [];
+  cropIndex = 0;
+  selectedCover = null;
+  editingCoverIndex = null;
+  replacingCoverIndex = null;
+  editingWorkId = "";
+  coverInput.value = "";
+  if (replaceCoverInput) replaceCoverInput.value = "";
+  renderCoverThumbs();
+  syncSubmitPanelMode();
+};
+
+const fillDeviceCheckboxes = (devices = []) => {
+  const selected = new Set(devices);
+  submitForm.querySelectorAll('input[name="devices"]').forEach((input) => {
+    input.checked = selected.has(input.value);
+  });
+};
+
+const populateSubmitDraftFromWork = async (work) => {
+  submitForm.elements.title.value = work.title || "";
+  submitForm.elements.url.value = work.url || "";
+  submitForm.elements.description.value = work.description || "";
+  submitForm.elements.category.value = work.category || "app";
+  submitForm.elements.tool.value = work.tool || "";
+  submitForm.elements.linkType.value = work.linkType || "website";
+  submitForm.elements.versionTag.value = work.versionTag || "";
+  submitForm.elements.stack.value = work.stack || "";
+  submitForm.elements.releaseNotes.value = (work.releaseNotes || []).join("\n");
+  submitForm.elements.github.value = work.github || "";
+  fillDeviceCheckboxes(work.devices || []);
+
+  const photos = dedupePhotos(work.photos?.length ? work.photos : work.cover ? [work.cover] : []);
+  croppedCovers = [...photos];
+  sourceCovers = await Promise.all(
+    photos.map((src) =>
+      readImageSource(src).catch(() => ({
+        src,
+        width: 1600,
+        height: 1000,
+        aspectMode: "landscape",
+        scale: 1,
+        minScale: 1,
+        maxScale: 3,
+        offsetX: 0,
+        offsetY: 0,
+      })),
+    ),
+  );
+  renderCoverThumbs();
+  syncSubmitPanelMode();
+};
+
+const openPanel = async (options = {}) => {
+  const { editWorkId = "" } = options;
   await syncServerSession();
   if (!getUser()) {
     openLogin();
     showToast("请先登录后再发布作品");
     return;
+  }
+  if (editWorkId) {
+    const work = works.find((item) => item.id === editWorkId);
+    if (!work || !isOwnWork(work)) {
+      showToast("只能修改你自己发布的作品");
+      return;
+    }
+    resetSubmitDraft();
+    editingWorkId = work.id;
+    await populateSubmitDraftFromWork(work);
+  } else if (!panel.classList.contains("is-open") || editingWorkId) {
+    resetSubmitDraft();
   }
   closeLogin();
   panel.classList.add("is-open");
@@ -1143,7 +1277,9 @@ const openDetail = (id, options = {}) => {
   detailActions.innerHTML = `
     <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
     ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
+    <button type="button" data-share-work="${work.id}">分享作品</button>
     <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
+    ${isOwnWork(work) ? `<button type="button" data-edit-work="${work.id}">编辑作品</button>` : ""}
     ${isOwnWork(work) ? `<button type="button" class="danger-link" data-delete-work="${work.id}">删除作品</button>` : ""}
   `;
   const warningLines = buildLinkRiskSummary(work);
@@ -1263,6 +1399,7 @@ const renderProfilePanel = () => {
 
   const context = activeProfileContext;
   const list = context.works || [];
+  const previewWorks = list.slice(0, 2);
   const viewsSum = list.reduce((sum, work) => sum + (work.views || 0), 0);
   const likesSum = list.reduce((sum, work) => sum + (work.likes || 0), 0);
 
@@ -1275,6 +1412,7 @@ const renderProfilePanel = () => {
   profileResetAvatarButton.hidden = !context.editable;
   profileSaveButton.hidden = !context.editable;
   profileLogoutButton.hidden = !context.editable;
+  if (profileShareButton) profileShareButton.hidden = false;
   profileModeLine.textContent = context.editable ? "我的主页" : "创作者";
   profileEmailLine.textContent = context.editable ? context.email : context.handle;
   profileProfileRuleLine.textContent = context.editable ? context.ruleHint || "" : "";
@@ -1287,7 +1425,7 @@ const renderProfilePanel = () => {
   profileStatLikesEl.textContent = formatNumber(likesSum);
 
   profileWorksGrid.innerHTML = list.length
-    ? list
+    ? previewWorks
         .map((work) => `
           <button type="button" class="profile-work-tile" data-open-work="${work.id}">
             <div class="profile-work-tile-visual ${work.cover ? "has-cover" : work.visual}">
@@ -1305,6 +1443,11 @@ const renderProfilePanel = () => {
         `)
         .join("")
     : `<div class="profile-empty">还没有作品。去发布一条，它会出现在这里。</div>`;
+
+  if (profileLibraryButton) {
+    profileLibraryButton.hidden = list.length <= 2;
+    profileLibraryButton.textContent = `进入作品库 · 查看全部 ${list.length} 件作品`;
+  }
 };
 
 const closeProfile = () => {
@@ -1342,6 +1485,190 @@ const openProfile = async (options = {}) => {
   renderProfilePanel();
   profileOverlay.classList.add("is-open");
   profileOverlay.setAttribute("aria-hidden", "false");
+};
+
+const buildSharePayload = (context, template = activeShareTemplate) => {
+  if (!context) return null;
+
+  if (context.kind === "work") {
+    const work = works.find((item) => item.id === context.workId);
+    if (!work) return null;
+    const author = getAuthorSnapshotForWork(work);
+    return {
+      kind: "work",
+      template,
+      title: work.title,
+      description: work.description,
+      category: getCategoryText(work.category),
+      cover: work.cover || work.photos?.[0] || "",
+      meta: buildDetailMetaItems(work).slice(0, 3),
+      versionTag: work.versionTag || "",
+      author: {
+        name: author.displayName,
+        handle: author.handle,
+        avatar: author.avatarUrl,
+      },
+      primaryUrl: work.url,
+      primaryLabel: getPrimaryActionLabel(work),
+      github: work.github || "",
+      createdAt: work.createdAt,
+    };
+  }
+
+  if (context.kind === "profile") {
+    const profile = context.profile || activeProfileContext;
+    if (!profile) return null;
+    const worksPreview = (profile.works || []).slice(0, 3).map((work) => ({
+      title: work.title,
+      cover: work.cover || work.photos?.[0] || "",
+      category: getCategoryText(work.category),
+    }));
+    return {
+      kind: "profile",
+      template,
+      title: profile.displayName,
+      description: profile.intro || "欢迎继续逛我的作品。",
+      author: {
+        name: profile.displayName,
+        handle: profile.handle,
+        avatar: profile.avatarUrl,
+      },
+      stats: {
+        works: profile.works?.length || 0,
+        views: profile.works?.reduce((sum, work) => sum + (work.views || 0), 0) || 0,
+        likes: profile.works?.reduce((sum, work) => sum + (work.likes || 0), 0) || 0,
+      },
+      worksPreview,
+      libraryUrl: getAbsolutePathUrl(buildWorksLibraryUrl(profile)),
+    };
+  }
+
+  return null;
+};
+
+const renderSharePreview = () => {
+  if (!sharePreviewCard || !activeShareContext) return;
+  const payload = buildSharePayload(activeShareContext, activeShareTemplate);
+  if (!payload) return;
+
+  sharePreviewCard.className = `share-preview-card share-template-${activeShareTemplate}`;
+  shareEyeline.textContent = payload.kind === "work" ? "Share work" : "Share profile";
+  shareTitleLine.textContent = payload.kind === "work" ? "分享这件作品" : "分享这个主页";
+  shareIntroLine.textContent =
+    payload.kind === "work"
+      ? "选择一个模板，为这件作品生成可直接打开的分享页。"
+      : "选择一个模板，为这个创作者主页生成可直接打开的分享页。";
+
+  if (payload.kind === "work") {
+    sharePreviewCard.innerHTML = `
+      <div class="share-preview-media">${payload.cover ? `<img src="${payload.cover}" alt="" />` : "<span>Viby</span>"}</div>
+      <div class="share-preview-body">
+        <span class="share-preview-kicker">${escapeHTML(payload.category)}</span>
+        <h3>${escapeHTML(payload.title)}</h3>
+        <p>${escapeHTML(payload.description)}</p>
+        <div class="share-preview-meta">${payload.meta.map((item) => `<span>${escapeHTML(item)}</span>`).join("")}</div>
+      </div>
+    `;
+    return;
+  }
+
+  sharePreviewCard.innerHTML = `
+    <div class="share-preview-profile-head">
+      <img src="${payload.author.avatar}" alt="${escapeHTML(payload.author.name)}" />
+      <div>
+        <span class="share-preview-kicker">Creator profile</span>
+        <h3>${escapeHTML(payload.title)}</h3>
+        <p>${escapeHTML(payload.description)}</p>
+      </div>
+    </div>
+    <div class="share-preview-stats">
+      <span>${payload.stats.works} 作品</span>
+      <span>${formatNumber(payload.stats.views)} 浏览</span>
+      <span>${formatNumber(payload.stats.likes)} 赞</span>
+    </div>
+    <div class="share-preview-strip">
+      ${payload.worksPreview
+        .map(
+          (work) => `
+            <div class="share-preview-strip-item">
+              ${work.cover ? `<img src="${work.cover}" alt="" />` : "<span>Viby</span>"}
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+};
+
+const openShareOverlay = (context) => {
+  activeShareContext = context;
+  activeShareTemplate = "aurora";
+  shareTemplateGrid?.querySelectorAll("[data-share-template]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.shareTemplate === activeShareTemplate);
+  });
+  renderSharePreview();
+  shareOverlay.classList.add("is-open");
+  shareOverlay.setAttribute("aria-hidden", "false");
+};
+
+const closeShareOverlay = () => {
+  blurOverlayFocus(shareOverlay);
+  shareOverlay.classList.remove("is-open");
+  shareOverlay.setAttribute("aria-hidden", "true");
+  activeShareContext = null;
+};
+
+const createSharePage = async (mode = "copy") => {
+  if (window.location.protocol === "file:") {
+    showToast("请先通过 npm start 启动站点，再生成分享页");
+    return;
+  }
+  const payload = buildSharePayload(activeShareContext, activeShareTemplate);
+  if (!payload) {
+    showToast("当前内容暂时无法生成分享页");
+    return;
+  }
+
+  const response = await fetch("/api/shares", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result?.url) {
+    showToast(result.error || "分享页生成失败，请稍后重试");
+    return;
+  }
+
+  const shareUrl = getAbsolutePathUrl(result.url);
+
+  if (mode === "open") {
+    window.open(shareUrl, "_blank", "noopener");
+    showToast("分享页已打开");
+    return;
+  }
+
+  if (mode === "native" && navigator.share) {
+    try {
+      await navigator.share({
+        title: payload.title,
+        text: payload.description,
+        url: shareUrl,
+      });
+      showToast("已调起系统分享");
+      return;
+    } catch {
+      /* 用户取消时不额外提示 */
+      return;
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    showToast("分享链接已复制");
+  } catch {
+    showToast(`分享页已生成：${shareUrl}`);
+  }
 };
 
 const readDocumentCookie = (name) => {
@@ -1647,7 +1974,7 @@ const renderCoverThumbs = () => {
   const count = croppedCovers.length;
   coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
   coverHelperText.textContent = count
-    ? "如需重新调整展示取景，可点击“重裁”；设为首图仅调整展示顺序，不会生成重复截图。"
+    ? "如需修改已上传截图，可直接替换图片或重新裁剪；设为首图仅调整展示顺序，不会生成重复截图。"
     : "请优先上传最能代表作品核心体验的画面。支持横版与竖版两种常用展示比例，详情页会按上传顺序依次展示。";
   coverClearButton.hidden = count === 0;
 
@@ -1672,6 +1999,7 @@ const renderCoverThumbs = () => {
           <div class="thumb-meta">
             <span>${index === 0 ? "默认首图" : `详情第 ${index + 1} 张`}</span>
             <div class="thumb-mini-actions">
+              <button class="thumb-action" type="button" data-thumb-replace="${index}">替换</button>
               <button class="thumb-action" type="button" data-thumb-edit="${index}">重裁</button>
               ${
                 index === 0
@@ -1768,7 +2096,7 @@ window.addEventListener("pointermove", (event) => {
   }
 });
 
-openButtons.forEach((button) => button.addEventListener("click", () => void openPanel()));
+openButtons.forEach((button) => button.addEventListener("click", () => void openPanel({ editWorkId: "" })));
 closeButton.addEventListener("click", closePanel);
 
 panel.addEventListener("click", (event) => {
@@ -1934,6 +2262,16 @@ profileWorksGrid.addEventListener("click", (event) => {
   openDetail(tile.dataset.openWork);
 });
 
+profileLibraryButton?.addEventListener("click", () => {
+  if (!activeProfileContext) return;
+  window.location.href = buildWorksLibraryUrl(activeProfileContext);
+});
+
+profileShareButton?.addEventListener("click", () => {
+  if (!activeProfileContext) return;
+  openShareOverlay({ kind: "profile", profile: activeProfileContext });
+});
+
 profileSaveButton.addEventListener("click", () => {
   const user = getUser();
   if (!user) return;
@@ -2050,6 +2388,8 @@ detailAuthorCard.addEventListener("click", (event) => {
 detailActions.addEventListener("click", (event) => {
   const visitLink = event.target.closest("[data-visit]");
   const likeButton = event.target.closest("[data-like]");
+  const editButton = event.target.closest("[data-edit-work]");
+  const shareButton = event.target.closest("[data-share-work]");
   const deleteButton = event.target.closest("[data-delete-work]");
 
   if (visitLink) {
@@ -2060,6 +2400,17 @@ detailActions.addEventListener("click", (event) => {
   if (likeButton && likeWork(likeButton.dataset.like)) {
     openDetail(likeButton.dataset.like, { photoIndex: activeDetailPhotoIndex });
     renderWorks();
+  }
+
+  if (editButton) {
+    closeDetail();
+    void openPanel({ editWorkId: editButton.dataset.editWork });
+    return;
+  }
+
+  if (shareButton) {
+    openShareOverlay({ kind: "work", workId: shareButton.dataset.shareWork });
+    return;
   }
 
   if (deleteButton) {
@@ -2135,6 +2486,26 @@ detailOverlay.addEventListener("click", (event) => {
   }
 });
 
+closeShareButton?.addEventListener("click", closeShareOverlay);
+
+shareOverlay?.addEventListener("click", (event) => {
+  if (event.target === shareOverlay) closeShareOverlay();
+});
+
+shareTemplateGrid?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-share-template]");
+  if (!button) return;
+  activeShareTemplate = safeTrim(button.dataset.shareTemplate) || "aurora";
+  shareTemplateGrid.querySelectorAll("[data-share-template]").forEach((item) => {
+    item.classList.toggle("is-active", item === button);
+  });
+  renderSharePreview();
+});
+
+shareOpenButton?.addEventListener("click", () => void createSharePage("open"));
+shareCopyButton?.addEventListener("click", () => void createSharePage("copy"));
+shareNativeButton?.addEventListener("click", () => void createSharePage("native"));
+
 rankButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activeRank = button.dataset.rank;
@@ -2194,6 +2565,23 @@ coverInput.addEventListener("change", async () => {
   }
 });
 
+replaceCoverInput?.addEventListener("change", async () => {
+  const file = replaceCoverInput.files?.[0];
+  const targetIndex = replacingCoverIndex;
+  replaceCoverInput.value = "";
+  if (!file || targetIndex === null || !Number.isFinite(targetIndex)) return;
+
+  try {
+    cropQueue = [await readImageFile(file)];
+    cropIndex = 0;
+    editingCoverIndex = targetIndex;
+    replacingCoverIndex = null;
+    openCropAtIndex();
+  } catch {
+    showToast("新截图读取失败，请换一张试试");
+  }
+});
+
 coverClearButton.addEventListener("click", () => {
   croppedCovers = [];
   sourceCovers = [];
@@ -2207,8 +2595,15 @@ coverClearButton.addEventListener("click", () => {
 
 coverThumbs.addEventListener("click", (event) => {
   const editButton = event.target.closest("[data-thumb-edit]");
+  const replaceButton = event.target.closest("[data-thumb-replace]");
   const coverButton = event.target.closest("[data-thumb-cover]");
   const removeButton = event.target.closest("[data-thumb-remove]");
+
+  if (replaceButton) {
+    replacingCoverIndex = Number(replaceButton.dataset.thumbReplace);
+    replaceCoverInput?.click();
+    return;
+  }
 
   if (editButton) {
     editingCoverIndex = Number(editButton.dataset.thumbEdit);
@@ -2389,53 +2784,60 @@ submitForm.addEventListener("submit", async (event) => {
     return;
   }
 
-  const newWork = normalizeWork(
-    {
-      id: `work-${Date.now()}`,
-      title: safeTrim(data.get("title")),
-      description: safeTrim(data.get("description")),
-      url: urlAnalysis.normalized,
-      urlSafetyLevel: urlAnalysis.level,
-      urlSafetyReasons: urlAnalysis.reasons,
-      github: githubAnalysis?.normalized || "",
-      githubSafetyLevel: githubAnalysis?.level || "normal",
-      githubSafetyReasons: githubAnalysis?.reasons || [],
-      category,
-      type: getTypeLabel(category),
-      linkType,
-      tool: safeTrim(data.get("tool")),
-      stack,
-      versionTag: safeTrim(data.get("versionTag")),
-      releaseNotes,
-      devices: getSelectedDevices(),
-      visual: getVisualClass(works.length),
-      cover: croppedCovers[0],
-      photos: dedupePhotos(croppedCovers),
-      createdAt: Date.now(),
-      views: 0,
-      likes: 0,
-      baseLikes: 0,
-      likedBy: [],
-      isUserCreated: true,
-      authorId: author.id,
-      authorName: author.displayName,
-      authorAvatar: author.avatarUrl,
-      authorHandle: author.handle,
-      authorBio: author.bio,
-    },
-    works.length,
+  const draft = {
+    title: safeTrim(data.get("title")),
+    description: safeTrim(data.get("description")),
+    url: urlAnalysis.normalized,
+    urlSafetyLevel: urlAnalysis.level,
+    urlSafetyReasons: urlAnalysis.reasons,
+    github: githubAnalysis?.normalized || "",
+    githubSafetyLevel: githubAnalysis?.level || "normal",
+    githubSafetyReasons: githubAnalysis?.reasons || [],
+    category,
+    type: getTypeLabel(category),
+    linkType,
+    tool: safeTrim(data.get("tool")),
+    stack,
+    versionTag: safeTrim(data.get("versionTag")),
+    releaseNotes,
+    devices: getSelectedDevices(),
+    cover: croppedCovers[0],
+    photos: dedupePhotos(croppedCovers),
+    isUserCreated: true,
+    authorId: author.id,
+    authorName: author.displayName,
+    authorAvatar: author.avatarUrl,
+    authorHandle: author.handle,
+    authorBio: author.bio,
+  };
+
+  const existingWork = editingWorkId ? works.find((item) => item.id === editingWorkId) : null;
+  const nextWork = normalizeWork(
+    existingWork
+      ? {
+          ...existingWork,
+          ...draft,
+        }
+      : {
+          id: `work-${Date.now()}`,
+          ...draft,
+          visual: getVisualClass(works.length),
+          createdAt: Date.now(),
+          views: 0,
+          likes: 0,
+          baseLikes: 0,
+          likedBy: [],
+        },
+    existingWork ? works.indexOf(existingWork) : works.length,
   );
 
-  works = [newWork, ...works];
+  if (existingWork) {
+    works = works.map((item) => (item.id === existingWork.id ? nextWork : item));
+  } else {
+    works = [nextWork, ...works];
+  }
   saveUserWorks();
-  submitForm.reset();
-  croppedCovers = [];
-  sourceCovers = [];
-  cropQueue = [];
-  cropIndex = 0;
-  selectedCover = null;
-  editingCoverIndex = null;
-  renderCoverThumbs();
+  resetSubmitDraft();
   closeCropper();
   activeRank = "latest";
   rankButtons.forEach((button) => {
@@ -2443,7 +2845,13 @@ submitForm.addEventListener("submit", async (event) => {
   });
   renderWorks();
   closePanel();
-  showToast(urlAnalysis.level === "caution" ? "作品已发布，并已为外链添加谨慎提示" : "作品已发布，已进入最新列表");
+  showToast(
+    existingWork
+      ? "作品内容已更新"
+      : urlAnalysis.level === "caution"
+        ? "作品已发布，并已为外链添加谨慎提示"
+        : "作品已发布，已进入最新列表",
+  );
 });
 
 window.addEventListener("keydown", (event) => {
@@ -2453,6 +2861,7 @@ window.addEventListener("keydown", (event) => {
     cancelCropSession(false);
     closeLogin();
     closeProfile();
+    closeShareOverlay();
   }
 
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {

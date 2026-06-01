@@ -14,15 +14,23 @@ const profilePrefsKey = "viby-profile-prefs";
 const oneDay = 24 * 60 * 60 * 1000;
 const pageSize = 9;
 
+const safeTrim = (value) => String(value || "").trim();
+const slugify = (value) =>
+  safeTrim(value)
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+const searchParams = new URLSearchParams(window.location.search);
+
 const viewState = {
   page: 1,
   query: "",
   scope: "all",
   category: "all",
   githubOnly: false,
+  author: safeTrim(searchParams.get("author")),
+  authorName: safeTrim(searchParams.get("name")),
 };
-
-const safeTrim = (value) => String(value || "").trim();
 const escapeHTML = (value) =>
   String(value)
     .replaceAll("&", "&amp;")
@@ -282,8 +290,19 @@ const matchesSearch = (work, query, scope) => {
   return (fields[scope] || fields.all).some((item) => fuzzyIncludes(item, query));
 };
 
+const matchesAuthor = (work) => {
+  if (!viewState.author) return true;
+  const target = safeTrim(viewState.author);
+  return (
+    safeTrim(work.authorId) === target ||
+    safeTrim(work.authorHandle) === target ||
+    slugify(work.authorName) === slugify(target)
+  );
+};
+
 const getFilteredWorks = () =>
   allWorks.filter((work) => {
+    if (!matchesAuthor(work)) return false;
     if (viewState.category !== "all" && work.category !== viewState.category) return false;
     if (viewState.githubOnly && !safeTrim(work.github)) return false;
     if (!matchesSearch(work, viewState.query, viewState.scope)) return false;
@@ -384,6 +403,7 @@ const renderSummary = (filteredWorks) => {
   if (viewState.category === "app") filterParts.push("只看 App");
   if (viewState.category === "website") filterParts.push("只看网站");
   if (viewState.githubOnly) filterParts.push("只看附带 GitHub");
+  if (viewState.author) filterParts.push(`正在查看 ${viewState.authorName || "这位创作者"} 的作品库`);
   if (viewState.query) filterParts.push(`模糊搜索“${viewState.query}”`);
 
   const hasFilters = Boolean(filterParts.length);
@@ -458,10 +478,13 @@ resetFiltersButton?.addEventListener("click", () => {
   viewState.scope = "all";
   viewState.category = "all";
   viewState.githubOnly = false;
+  viewState.author = "";
+  viewState.authorName = "";
   viewState.page = 1;
 
   if (searchInput) searchInput.value = "";
   if (githubOnlyInput) githubOnlyInput.checked = false;
+  window.history.replaceState({}, "", window.location.pathname);
   syncButtons(scopeButtons, "all", "searchScope");
   syncButtons(categoryButtons, "all", "categoryFilter");
   renderGrid();
