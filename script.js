@@ -29,6 +29,8 @@ const coverClearButton = document.querySelector("#coverClearButton");
 const coverUploadActions = document.querySelector("#coverUploadActions");
 const optionalFieldsToggle = document.querySelector("#optionalFieldsToggle");
 const optionalFieldsPanel = document.querySelector("#optionalFieldsPanel");
+const optionalFieldsTitle = optionalFieldsToggle?.querySelector(".optional-toggle-title");
+const optionalFieldsSubtitle = optionalFieldsToggle?.querySelector(".optional-toggle-subtitle");
 const panelEyeline = document.querySelector("#panelEyeline");
 const panelTitle = document.querySelector("#panelTitle");
 const panelDescription = document.querySelector("#panelDescription");
@@ -129,7 +131,7 @@ const externalSafetyDisclaimer =
 const externalSensitiveDataWarning = "请不要在陌生页面输入密码、短信验证码、银行卡、助记词或私钥。";
 const maxCoverCount = 5;
 const maxCoverUploadFileBytes = 12 * 1024 * 1024;
-const maxCoverPayloadBytes = 6.2 * 1024 * 1024;
+const maxCoverPayloadBytes = 5.2 * 1024 * 1024;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const safeTrim = (value) => String(value || "").trim();
@@ -2432,7 +2434,7 @@ const syncServerSession = async () => {
       data = {};
     }
 
-    if (response.status === 401) {
+    if (response.status === 401 || !data.user) {
       localStorage.removeItem(authKey);
       document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
       profilePrefsCache = {};
@@ -2572,7 +2574,7 @@ const estimateDataUrlBytes = (value) => {
   return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
 };
 
-const encodeCanvasWithinLimit = async (canvas, maxBytes = 1500 * 1024) => {
+const encodeCanvasWithinLimit = async (canvas, maxBytes = 1200 * 1024) => {
   const attempts = [
     { scale: 1, quality: 0.86 },
     { scale: 1, quality: 0.78 },
@@ -2598,7 +2600,10 @@ const toggleOptionalFields = (expanded = !optionalFieldsExpanded) => {
   optionalFieldsToggle?.setAttribute("aria-expanded", optionalFieldsExpanded ? "true" : "false");
   if (optionalFieldsToggle) {
     optionalFieldsToggle.classList.toggle("is-open", optionalFieldsExpanded);
-    optionalFieldsToggle.querySelector("span").textContent = optionalFieldsExpanded ? "收起补充信息" : "补充更多信息";
+  }
+  if (optionalFieldsTitle) optionalFieldsTitle.textContent = optionalFieldsExpanded ? "收起补充信息" : "补充更多信息";
+  if (optionalFieldsSubtitle) {
+    optionalFieldsSubtitle.textContent = optionalFieldsExpanded ? "先填核心信息，补充项随时再收起" : "全部选填，需要时再展开";
   }
 };
 
@@ -2745,10 +2750,10 @@ const renderCoverThumbs = () => {
         <div class="thumb-card ${index === 0 ? "is-cover" : ""}">
           <button class="thumb-preview" type="button" data-thumb-edit="${index}">
             <img src="${src}" alt="作品截图 ${index + 1}" />
-            <span class="thumb-badge">${index === 0 ? "首图" : `图 ${index + 1}`}</span>
+            <span class="thumb-badge">${index === 0 ? "封面" : `细节 ${String(index + 1).padStart(2, "0")}`}</span>
           </button>
           <div class="thumb-meta">
-            <strong>${index === 0 ? "默认封面" : `详情第 ${index + 1} 张`}</strong>
+            <strong>${index === 0 ? "默认封面" : `作品细节 ${String(index + 1).padStart(2, "0")}`}</strong>
             <div class="thumb-mini-actions">
               <button class="thumb-action" type="button" data-thumb-replace="${index}">替换</button>
               <button class="thumb-action" type="button" data-thumb-edit="${index}">重裁</button>
@@ -2782,10 +2787,14 @@ const openCropAtIndex = () => {
   cropStageLabel.textContent = editingCoverIndex !== null ? "重新裁剪" : "截图裁剪";
   cropCounter.textContent =
     editingCoverIndex !== null
-      ? `编辑第 ${editingCoverIndex + 1} 张`
-      : `${cropIndex + 1} / ${cropQueue.length}`;
+      ? `正在调整第 ${String(editingCoverIndex + 1).padStart(2, "0")} 张`
+      : `第 ${String(cropIndex + 1).padStart(2, "0")} 张，共 ${String(cropQueue.length).padStart(2, "0")} 张`;
   confirmCropButton.textContent =
-    editingCoverIndex !== null ? "保存这张截图" : `确认这一张 ${cropIndex + 1}/${cropQueue.length}`;
+    editingCoverIndex !== null
+      ? "保存这张截图"
+      : cropIndex + 1 >= cropQueue.length
+        ? "确认并完成"
+        : `确认并继续 · ${cropIndex + 1}/${cropQueue.length}`;
   openCropper();
   requestAnimationFrame(() => {
     ensureCropMetrics(true);
@@ -3461,7 +3470,7 @@ coverThumbs.addEventListener("click", (event) => {
     croppedCovers.unshift(nextCover);
     sourceCovers.unshift(nextSource);
     renderCoverThumbs();
-    showToast("已设为首图");
+    showToast("已设为封面");
     return;
   }
 

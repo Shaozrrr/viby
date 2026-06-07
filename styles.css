@@ -1365,37 +1365,57 @@ select {
   transform: translateY(-1px);
 }
 
-.optional-fields-toggle span,
-.optional-fields-toggle small {
+.optional-toggle-copy,
+.optional-toggle-copy small,
+.optional-toggle-copy strong {
   pointer-events: none;
 }
 
-.optional-fields-toggle span {
+.optional-toggle-copy {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.optional-toggle-title {
   font-size: 14px;
   font-weight: 760;
 }
 
-.optional-fields-toggle small {
+.optional-toggle-subtitle {
   color: var(--muted);
   font-size: 12px;
+  font-weight: 520;
 }
 
-.optional-fields-toggle::after {
-  content: "+";
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
+.optional-toggle-indicator {
+  position: relative;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
-  color: white;
-  background: linear-gradient(135deg, #8e63ff, #11131c);
-  font-size: 17px;
-  line-height: 1;
-  box-shadow: 0 12px 24px rgba(95, 61, 255, 0.18);
+  border: 1px solid rgba(95, 61, 255, 0.14);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.72)),
+    linear-gradient(135deg, rgba(146, 112, 255, 0.12), rgba(17, 19, 28, 0.08));
+  box-shadow: 0 14px 30px rgba(18, 14, 35, 0.08);
 }
 
-.optional-fields-toggle.is-open::after {
-  content: "−";
+.optional-toggle-indicator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 9px;
+  height: 9px;
+  margin: auto;
+  border-right: 2px solid #1a1b23;
+  border-bottom: 2px solid #1a1b23;
+  transform: translateY(-1px) rotate(45deg);
+  transition: transform 180ms ease;
+}
+
+.optional-fields-toggle.is-open .optional-toggle-indicator::before {
+  transform: translateY(1px) rotate(-135deg);
 }
 
 .optional-fields-panel {
@@ -1405,6 +1425,11 @@ select {
   border: 1px solid rgba(20, 18, 27, 0.06);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.48);
+}
+
+.optional-fields-panel[hidden],
+.cover-upload-actions[hidden] {
+  display: none !important;
 }
 
 .work-actions {
@@ -1661,8 +1686,17 @@ select {
   accent-color: #111218;
 }
 
-.publish-safety-note {
-  margin: -4px 0 0;
+.publish-safety-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.publish-safety-copy strong {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.publish-safety-copy small {
   color: #7a7486;
   font-size: 12px;
   line-height: 1.7;
@@ -2898,6 +2932,14 @@ input[type="range"] {
   font-weight: 760;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(18, 14, 35, 0.05);
+}
+
+.cover-add-button[hidden] {
+  display: none !important;
+}
+
+.cover-clear-button[hidden] {
+  display: none !important;
 }
 
 .cover-clear-button {

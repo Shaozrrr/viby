@@ -1762,7 +1762,7 @@ const handleGitHubCallback = async (request, response, url) => {
 const handleMe = (request, response) => {
   const user = getRequestUser(request);
   if (user) readAccountState(user);
-  sendJson(response, user ? 200 : 401, user ? { user, profile: getProfileForUser(user) } : { user: null }, { noStore: true });
+  sendJson(response, 200, user ? { user, profile: getProfileForUser(user) } : { user: null }, { noStore: true });
 };
 
 const handleHealth = (response) => {
@@ -2044,8 +2044,12 @@ const handleUpdateProfile = async (request, response) => {
 
   let payload = {};
   try {
-    payload = JSON.parse((await readRequestBody(request)) || "{}");
-  } catch {
+    payload = JSON.parse((await readRequestBody(request, { limitBytes: 12 * 1024 * 1024 })) || "{}");
+  } catch (error) {
+    if (error?.code === "PAYLOAD_TOO_LARGE") {
+      sendJson(response, 413, { error: "资料内容过大，请换一张更轻一点的头像后再试" }, { noStore: true });
+      return;
+    }
     sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
     return;
   }
@@ -2099,8 +2103,12 @@ const handleCreateWork = async (request, response) => {
 
   let payload = {};
   try {
-    payload = JSON.parse((await readRequestBody(request)) || "{}");
-  } catch {
+    payload = JSON.parse((await readRequestBody(request, { limitBytes: 12 * 1024 * 1024 })) || "{}");
+  } catch (error) {
+    if (error?.code === "PAYLOAD_TOO_LARGE") {
+      sendJson(response, 413, { error: "作品内容过大，请减少截图数量或使用更轻一点的截图" }, { noStore: true });
+      return;
+    }
     sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
     return;
   }
@@ -2168,8 +2176,12 @@ const handleUpdateWork = async (request, response, id) => {
 
   let payload = {};
   try {
-    payload = JSON.parse((await readRequestBody(request)) || "{}");
-  } catch {
+    payload = JSON.parse((await readRequestBody(request, { limitBytes: 12 * 1024 * 1024 })) || "{}");
+  } catch (error) {
+    if (error?.code === "PAYLOAD_TOO_LARGE") {
+      sendJson(response, 413, { error: "作品内容过大，请减少截图数量或使用更轻一点的截图" }, { noStore: true });
+      return;
+    }
     sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
     return;
   }

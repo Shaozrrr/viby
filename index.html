@@ -251,8 +251,11 @@
             aria-expanded="false"
             aria-controls="optionalFieldsPanel"
           >
-            <span>补充更多信息</span>
-            <small>全部选填</small>
+            <span class="optional-toggle-copy">
+              <strong class="optional-toggle-title">补充更多信息</strong>
+              <small class="optional-toggle-subtitle">全部选填，需要时再展开</small>
+            </span>
+            <span class="optional-toggle-indicator" aria-hidden="true"></span>
           </button>
           <div class="optional-fields-panel" id="optionalFieldsPanel" hidden>
             <div class="form-grid">
@@ -310,11 +313,11 @@
           </div>
           <label class="publish-safety-check">
             <input name="publisherAgreement" type="checkbox" value="yes" required />
-            <span>我确认我有权发布这些内容，不包含诈骗、侵权、恶意导流或违法信息，并理解 Viby 可能对作品进行审核、限制、下架及合规处理。</span>
+            <span class="publish-safety-copy">
+              <strong>我确认我有权发布这些内容，不包含诈骗、侵权、恶意导流或违法信息，并理解 Viby 可能对作品进行审核、限制、下架及合规处理。</strong>
+              <small>Viby 仅提供作品展示与发现入口，不对第三方站点的合法性、安全性、真实性或交易结果作保证。访客请勿输入密码、短信验证码、银行卡、助记词或私钥。</small>
+            </span>
           </label>
-          <p class="publish-safety-note">
-            Viby 仅提供作品展示与发现入口，不对第三方站点的合法性、安全性、真实性或交易结果作保证。访客请勿输入密码、短信验证码、银行卡、助记词或私钥。
-          </p>
           <button type="submit" class="publish-button" id="submitWorkButton">发布作品</button>
         </form>
       </div>
