@@ -26,6 +26,9 @@ const coverThumbs = document.querySelector("#coverThumbs");
 const coverCountText = document.querySelector("#coverCountText");
 const coverHelperText = document.querySelector("#coverHelperText");
 const coverClearButton = document.querySelector("#coverClearButton");
+const coverUploadActions = document.querySelector("#coverUploadActions");
+const optionalFieldsToggle = document.querySelector("#optionalFieldsToggle");
+const optionalFieldsPanel = document.querySelector("#optionalFieldsPanel");
 const panelEyeline = document.querySelector("#panelEyeline");
 const panelTitle = document.querySelector("#panelTitle");
 const panelDescription = document.querySelector("#panelDescription");
@@ -124,6 +127,9 @@ const defaultAvatar = "./logo-source.png";
 const externalSafetyDisclaimer =
   "Viby 仅提供第三方作品展示入口，不对外部站点的合法性、安全性、真实性或交易结果作保证。";
 const externalSensitiveDataWarning = "请不要在陌生页面输入密码、短信验证码、银行卡、助记词或私钥。";
+const maxCoverCount = 5;
+const maxCoverUploadFileBytes = 12 * 1024 * 1024;
+const maxCoverPayloadBytes = 6.2 * 1024 * 1024;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const safeTrim = (value) => String(value || "").trim();
@@ -205,6 +211,7 @@ let activeReportReason = "";
 let activeLinkGuardContext = null;
 let loginCooldownTimer = null;
 let loginCooldownUntil = 0;
+let optionalFieldsExpanded = false;
 
 let vibyBackend = {
   checked: false,
@@ -1615,8 +1622,8 @@ const syncSubmitPanelMode = () => {
   if (panelTitle) panelTitle.textContent = isEditing ? "修改这件作品" : "发布一个作品";
   if (panelDescription) {
     panelDescription.textContent = isEditing
-      ? "你可以更新作品信息、替换截图、重新调整首图顺序，保存后会直接同步到当前作品。"
-      : "填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。";
+      ? "更新标题、链接、简介和截图就够了，其他补充信息可以按需展开。"
+      : "默认只填最必要的信息。其他补充项都可以按需展开，不会打断发布。";
   }
   if (submitWorkButton) submitWorkButton.textContent = isEditing ? "保存修改" : "发布作品";
 };
@@ -1633,6 +1640,7 @@ const resetSubmitDraft = () => {
   editingWorkId = "";
   coverInput.value = "";
   if (replaceCoverInput) replaceCoverInput.value = "";
+  toggleOptionalFields(false);
   renderCoverThumbs();
   syncSubmitPanelMode();
 };
@@ -1648,7 +1656,7 @@ const populateSubmitDraftFromWork = async (work) => {
   submitForm.elements.title.value = work.title || "";
   submitForm.elements.url.value = work.url || "";
   submitForm.elements.description.value = work.description || "";
-  submitForm.elements.category.value = work.category || "app";
+  submitForm.elements.category.value = work.category || "website";
   submitForm.elements.tool.value = work.tool || "";
   submitForm.elements.linkType.value = work.linkType || "website";
   submitForm.elements.versionTag.value = work.versionTag || "";
@@ -1656,6 +1664,17 @@ const populateSubmitDraftFromWork = async (work) => {
   submitForm.elements.releaseNotes.value = (work.releaseNotes || []).join("\n");
   submitForm.elements.github.value = work.github || "";
   fillDeviceCheckboxes(work.devices || []);
+  const hasOptionalValues = Boolean(
+    safeTrim(work.category) && safeTrim(work.category) !== "website" ||
+      safeTrim(work.tool) ||
+      (safeTrim(work.linkType) && safeTrim(work.linkType) !== "website") ||
+      safeTrim(work.versionTag) ||
+      safeTrim(work.stack) ||
+      safeTrim(work.github) ||
+      (Array.isArray(work.releaseNotes) && work.releaseNotes.length) ||
+      (Array.isArray(work.devices) && work.devices.length > 2),
+  );
+  toggleOptionalFields(hasOptionalValues);
 
   const photos = dedupePhotos(work.photos?.length ? work.photos : work.cover ? [work.cover] : []);
   croppedCovers = [...photos];
@@ -2488,6 +2507,14 @@ const handleAuthRedirectMessage = () => {
 
 const readImageFile = (file) =>
   new Promise((resolve, reject) => {
+    if (!file || !String(file.type || "").startsWith("image/")) {
+      reject(new Error("请选择图片文件"));
+      return;
+    }
+    if ((file.size || 0) > maxCoverUploadFileBytes) {
+      reject(new Error("单张图片请控制在 12MB 以内"));
+      return;
+    }
     const reader = new FileReader();
     reader.addEventListener("load", () => {
       const image = new Image();
@@ -2511,6 +2538,69 @@ const readImageFile = (file) =>
     reader.addEventListener("error", reject);
     reader.readAsDataURL(file);
   });
+
+const loadImageFromSrc = (src) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image), { once: true });
+    image.addEventListener("error", () => reject(new Error("图片解码失败，请换一张试试")), { once: true });
+    image.src = src;
+  });
+
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")), { once: true });
+    reader.addEventListener("error", () => reject(new Error("图片编码失败，请换一张试试")), { once: true });
+    reader.readAsDataURL(blob);
+  });
+
+const resizeCanvas = (sourceCanvas, scale = 1) => {
+  if (scale >= 0.999) return sourceCanvas;
+  const nextCanvas = document.createElement("canvas");
+  nextCanvas.width = Math.max(720, Math.round(sourceCanvas.width * scale));
+  nextCanvas.height = Math.max(720, Math.round(sourceCanvas.height * scale));
+  const context = nextCanvas.getContext("2d");
+  context.drawImage(sourceCanvas, 0, 0, nextCanvas.width, nextCanvas.height);
+  return nextCanvas;
+};
+
+const estimateDataUrlBytes = (value) => {
+  const text = safeTrim(value);
+  const base64 = text.includes(",") ? text.split(",").pop() || "" : text;
+  const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+};
+
+const encodeCanvasWithinLimit = async (canvas, maxBytes = 1500 * 1024) => {
+  const attempts = [
+    { scale: 1, quality: 0.86 },
+    { scale: 1, quality: 0.78 },
+    { scale: 0.92, quality: 0.76 },
+    { scale: 0.86, quality: 0.72 },
+    { scale: 0.78, quality: 0.68 },
+  ];
+  let fallback = "";
+  for (const attempt of attempts) {
+    const targetCanvas = resizeCanvas(canvas, attempt.scale);
+    const blob = await new Promise((resolve) => targetCanvas.toBlob(resolve, "image/jpeg", attempt.quality));
+    if (!blob) continue;
+    const dataUrl = await blobToDataUrl(blob);
+    fallback = dataUrl;
+    if (blob.size <= maxBytes && estimateDataUrlBytes(dataUrl) <= maxBytes) return dataUrl;
+  }
+  return fallback;
+};
+
+const toggleOptionalFields = (expanded = !optionalFieldsExpanded) => {
+  optionalFieldsExpanded = Boolean(expanded);
+  optionalFieldsPanel.hidden = !optionalFieldsExpanded;
+  optionalFieldsToggle?.setAttribute("aria-expanded", optionalFieldsExpanded ? "true" : "false");
+  if (optionalFieldsToggle) {
+    optionalFieldsToggle.classList.toggle("is-open", optionalFieldsExpanded);
+    optionalFieldsToggle.querySelector("span").textContent = optionalFieldsExpanded ? "收起补充信息" : "补充更多信息";
+  }
+};
 
 const getCropFrameSize = () => ({
   width: Math.max(coverFrame.clientWidth, 1),
@@ -2630,20 +2720,23 @@ const zoomSelectedCover = (nextScale, clientX, clientY) => {
 
 const renderCoverThumbs = () => {
   const count = croppedCovers.length;
-  coverCountText.textContent = count ? `已上传 ${count} / 5 张截图` : "还没上传截图";
+  coverCountText.textContent = count ? `已添加 ${count} / ${maxCoverCount} 张截图` : "还没上传截图";
   coverHelperText.textContent = count
-    ? "如需修改已上传截图，可直接替换图片或重新裁剪；设为首图仅调整展示顺序，不会生成重复截图。"
-    : "请优先上传最能代表作品核心体验的画面。支持横版与竖版两种常用展示比例，详情页会按上传顺序依次展示。";
+    ? "首张默认作为封面。你可以继续添加、替换、重裁或调整顺序。"
+    : "先上传最能代表作品的画面，系统会自动压缩并裁成合适比例。";
+  if (coverUploadActions) coverUploadActions.hidden = count === 0;
   coverClearButton.hidden = count === 0;
 
   if (count) {
     coverThumb.src = croppedCovers[0];
     coverThumb.hidden = false;
     pickCoverButton.classList.add("has-image");
+    pickCoverButton.hidden = true;
   } else {
     coverThumb.hidden = true;
     coverThumb.removeAttribute("src");
     pickCoverButton.classList.remove("has-image");
+    pickCoverButton.hidden = false;
   }
 
   coverThumbs.innerHTML = croppedCovers
@@ -2655,7 +2748,7 @@ const renderCoverThumbs = () => {
             <span class="thumb-badge">${index === 0 ? "首图" : `图 ${index + 1}`}</span>
           </button>
           <div class="thumb-meta">
-            <span>${index === 0 ? "默认首图" : `详情第 ${index + 1} 张`}</span>
+            <strong>${index === 0 ? "默认封面" : `详情第 ${index + 1} 张`}</strong>
             <div class="thumb-mini-actions">
               <button class="thumb-action" type="button" data-thumb-replace="${index}">替换</button>
               <button class="thumb-action" type="button" data-thumb-edit="${index}">重裁</button>
@@ -2710,9 +2803,7 @@ const cancelCropSession = (notify = true) => {
 
 const createCroppedCover = async () => {
   if (!selectedCover) return "";
-  const image = new Image();
-  image.src = selectedCover.src;
-  await image.decode();
+  const image = await loadImageFromSrc(selectedCover.src);
 
   const frame = getCropFrameSize();
   const scale = selectedCover.scale;
@@ -2725,21 +2816,21 @@ const createCroppedCover = async () => {
   const canvas = document.createElement("canvas");
   const cropMode = safeTrim(selectedCover.aspectMode) || "landscape";
   if (cropMode === "landscape") {
-    canvas.width = 1600;
-    canvas.height = 1000;
+    canvas.width = 1440;
+    canvas.height = 900;
   } else if (cropMode === "portrait") {
-    canvas.width = 1200;
-    canvas.height = 1600;
+    canvas.width = 1080;
+    canvas.height = 1440;
   } else if (aspectRatio >= 1) {
-    canvas.width = 1600;
+    canvas.width = 1440;
     canvas.height = Math.max(480, Math.round(canvas.width / aspectRatio));
   } else {
-    canvas.height = 1600;
+    canvas.height = 1440;
     canvas.width = Math.max(640, Math.round(canvas.height * aspectRatio));
   }
   const context = canvas.getContext("2d");
   context.drawImage(image, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.9);
+  return encodeCanvasWithinLimit(canvas);
 };
 
 window.addEventListener("pointermove", (event) => {
@@ -3275,9 +3366,9 @@ workGrid.addEventListener("click", (event) => {
 });
 
 coverInput.addEventListener("change", async () => {
-  const remainingSlots = 5 - croppedCovers.length;
+  const remainingSlots = maxCoverCount - croppedCovers.length;
   if (remainingSlots <= 0) {
-    showToast("最多上传 5 张照片");
+    showToast(`最多上传 ${maxCoverCount} 张截图`);
     coverInput.value = "";
     return;
   }
@@ -3295,8 +3386,8 @@ coverInput.addEventListener("change", async () => {
     editingCoverIndex = null;
     coverInput.value = "";
     openCropAtIndex();
-  } catch {
-    showToast("图片读取失败，请换一张试试");
+  } catch (error) {
+    showToast(error.message || "图片读取失败，请换一张试试");
   }
 });
 
@@ -3312,8 +3403,8 @@ replaceCoverInput?.addEventListener("change", async () => {
     editingCoverIndex = targetIndex;
     replacingCoverIndex = null;
     openCropAtIndex();
-  } catch {
-    showToast("新截图读取失败，请换一张试试");
+  } catch (error) {
+    showToast(error.message || "新截图读取失败，请换一张试试");
   }
 });
 
@@ -3461,7 +3552,10 @@ coverCropper.addEventListener("click", (event) => {
 
 confirmCropButton.addEventListener("click", async () => {
   const cropped = await createCroppedCover();
-  if (!cropped) return;
+  if (!cropped) {
+    showToast("截图处理失败，请换一张或稍后再试");
+    return;
+  }
 
   if (editingCoverIndex !== null) {
     croppedCovers[editingCoverIndex] = cropped;
@@ -3554,6 +3648,12 @@ submitForm.addEventListener("submit", async (event) => {
     authorBio: author.bio,
   };
 
+  const estimatedCoverBytes = dedupePhotos(croppedCovers).reduce((sum, item) => sum + estimateDataUrlBytes(item), 0);
+  if (estimatedCoverBytes > maxCoverPayloadBytes) {
+    showToast("截图总大小还是有点大，请删减几张，或用更轻一点的截图后再试");
+    return;
+  }
+
   const existingWork = editingWorkId ? works.find((item) => item.id === editingWorkId) : null;
   const nextDraft = normalizeWork(
     existingWork
@@ -3610,6 +3710,8 @@ submitForm.addEventListener("submit", async (event) => {
   }
   showToast(existingWork ? "作品内容已更新" : urlAnalysis.level === "caution" ? "作品已发布，并已为外链添加谨慎提示" : "作品已发布，已进入最新列表");
 });
+
+optionalFieldsToggle?.addEventListener("click", () => toggleOptionalFields());
 
 window.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {

@@ -1864,7 +1864,11 @@ const handleCreateShare = async (request, response) => {
   let payload = {};
   try {
     payload = JSON.parse((await readRequestBody(request)) || "{}");
-  } catch {
+  } catch (error) {
+    if (error?.code === "PAYLOAD_TOO_LARGE") {
+      sendJson(response, 413, { error: "作品内容过大，请减少截图数量或重试更轻的截图" }, { noStore: true });
+      return;
+    }
     sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
     return;
   }
@@ -1964,7 +1968,11 @@ const handleCheckUrlSafety = async (request, response) => {
   let payload = {};
   try {
     payload = JSON.parse((await readRequestBody(request)) || "{}");
-  } catch {
+  } catch (error) {
+    if (error?.code === "PAYLOAD_TOO_LARGE") {
+      sendJson(response, 413, { error: "作品内容过大，请减少截图数量或重试更轻的截图" }, { noStore: true });
+      return;
+    }
     sendJson(response, 400, { error: "请求格式不正确" }, { noStore: true });
     return;
   }

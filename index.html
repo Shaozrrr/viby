@@ -219,7 +219,10 @@
           <div class="cover-upload">
             <div class="cover-upload-topline">
               <p class="cover-upload-status" id="coverCountText">还没上传截图</p>
-              <button class="cover-clear-button" id="coverClearButton" type="button" hidden>清空</button>
+              <div class="cover-upload-actions" id="coverUploadActions" hidden>
+                <label class="cover-add-button" for="coverInput" id="coverAddButton">继续添加</label>
+                <button class="cover-clear-button" id="coverClearButton" type="button">清空</button>
+              </div>
             </div>
             <input id="coverInput" name="cover" type="file" accept="image/*" multiple />
             <input id="replaceCoverInput" type="file" accept="image/*" hidden />
@@ -227,70 +230,84 @@
               <span class="cover-copy cover-copy-main">
                 <span class="cover-plus">+</span>
                 <strong>上传作品截图</strong>
-                <small>支持横版与竖版两种常用展示比例，首张截图默认作为作品封面展示。</small>
+                <small>先放 1 张最能代表作品的画面，首张会自动作为封面。</small>
               </span>
               <span class="cover-copy cover-copy-sub">
                 <span>横版 / 竖版</span>
                 <span>最多 5 张</span>
-                <span>首张默认封面</span>
+                <span>可替换 / 重裁</span>
               </span>
               <img id="coverThumb" alt="已裁剪封面预览" hidden />
             </label>
             <p class="cover-upload-tip" id="coverHelperText">
-              请优先上传最能代表作品核心体验的画面。设为首图仅调整展示顺序，不会生成重复截图。
+              截图会自动压缩并裁成适合卡片展示的比例，减少上传失败。
             </p>
             <div class="cover-thumbs" id="coverThumbs"></div>
           </div>
-          <fieldset class="device-field">
-            <legend>适配设备</legend>
-            <label><input type="checkbox" name="devices" value="手机端" checked /> 手机端</label>
-            <label><input type="checkbox" name="devices" value="电脑端" checked /> 电脑端</label>
-            <label><input type="checkbox" name="devices" value="平板端" /> 平板端</label>
-            <label><input type="checkbox" name="devices" value="手表端" /> 手表端</label>
-          </fieldset>
-          <div class="form-grid">
-            <label>
-              <span class="field-label">分类 <em class="field-badge is-optional">选填</em></span>
-              <select name="category">
-                <option value="app">APP</option>
-                <option value="website">网站</option>
-              </select>
-            </label>
-            <label>
-              <span class="field-label">AI 工具 <em class="field-badge is-optional">选填</em></span>
-              <input name="tool" type="text" placeholder="Cursor / Claude Code" />
+          <button
+            type="button"
+            class="optional-fields-toggle"
+            id="optionalFieldsToggle"
+            aria-expanded="false"
+            aria-controls="optionalFieldsPanel"
+          >
+            <span>补充更多信息</span>
+            <small>全部选填</small>
+          </button>
+          <div class="optional-fields-panel" id="optionalFieldsPanel" hidden>
+            <div class="form-grid">
+              <label>
+                <span class="field-label">分类 <em class="field-badge is-optional">选填</em></span>
+                <select name="category">
+                  <option value="website">网站</option>
+                  <option value="app">APP</option>
+                </select>
+              </label>
+              <label>
+                <span class="field-label">GitHub 链接 <em class="field-badge is-optional">选填</em></span>
+                <input name="github" type="url" placeholder="https://github.com/..." />
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span class="field-label">AI 工具 <em class="field-badge is-optional">选填</em></span>
+                <input name="tool" type="text" placeholder="Cursor / Claude Code" />
+              </label>
+              <label>
+                <span class="field-label">技术栈 <em class="field-badge is-optional">选填</em></span>
+                <input name="stack" type="text" placeholder="React / Supabase / Cloudflare" />
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>
+                <span class="field-label">导流方式 <em class="field-badge is-optional">选填</em></span>
+                <select name="linkType">
+                  <option value="website">网站</option>
+                  <option value="appstore">App Store</option>
+                </select>
+              </label>
+              <label>
+                <span class="field-label">版本号 <em class="field-badge is-optional">选填</em></span>
+                <input name="versionTag" type="text" placeholder="例如 v1.3.0" />
+              </label>
+            </div>
+            <fieldset class="device-field">
+              <legend>适配设备</legend>
+              <label><input type="checkbox" name="devices" value="手机端" checked /> 手机端</label>
+              <label><input type="checkbox" name="devices" value="电脑端" checked /> 电脑端</label>
+              <label><input type="checkbox" name="devices" value="平板端" /> 平板端</label>
+              <label><input type="checkbox" name="devices" value="手表端" /> 手表端</label>
+            </fieldset>
+            <label class="release-notes-field">
+              <span class="field-label">本次版本迭代 <em class="field-badge is-optional">选填</em></span>
+              <textarea
+                name="releaseNotes"
+                rows="4"
+                placeholder="每行写一条更新内容"
+              ></textarea>
+              <small class="field-note">例如：优化竖图裁剪体验 / 新增作者主页入口 / 修复移动端适配</small>
             </label>
           </div>
-          <div class="form-grid">
-            <label>
-              <span class="field-label">导流方式 <em class="field-badge is-optional">选填</em></span>
-              <select name="linkType">
-                <option value="website">网站</option>
-                <option value="appstore">App Store</option>
-              </select>
-            </label>
-            <label>
-              <span class="field-label">版本号 <em class="field-badge is-optional">选填</em></span>
-              <input name="versionTag" type="text" placeholder="例如 v1.3.0" />
-            </label>
-          </div>
-          <label>
-            <span class="field-label">技术栈 <em class="field-badge is-optional">选填</em></span>
-            <input name="stack" type="text" placeholder="React / Supabase / Cloudflare" />
-          </label>
-          <label class="release-notes-field">
-            <span class="field-label">本次版本迭代 <em class="field-badge is-optional">选填</em></span>
-            <textarea
-              name="releaseNotes"
-              rows="6"
-              placeholder="每行写一条更新内容"
-            ></textarea>
-            <small class="field-note">例如：优化竖图裁剪体验 / 新增作者主页入口 / 修复移动端适配</small>
-          </label>
-          <label>
-            <span class="field-label">GitHub 链接 <em class="field-badge is-optional">选填</em></span>
-            <input name="github" type="url" placeholder="https://github.com/..." />
-          </label>
           <label class="publish-safety-check">
             <input name="publisherAgreement" type="checkbox" value="yes" required />
             <span>我确认我有权发布这些内容，不包含诈骗、侵权、恶意导流或违法信息，并理解 Viby 可能对作品进行审核、限制、下架及合规处理。</span>
