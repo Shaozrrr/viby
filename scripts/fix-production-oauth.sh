@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 在 Ubuntu 生产机上以 root 或具备写权限的用户执行，一键覆盖 server.js / script.js 并重启 PM2。
+# 在 Ubuntu 生产机上以 root 或具备写权限的用户执行，一键覆盖 server.js / script.js / share.js 并重启 PM2。
 # 用法：
 #   sudo bash scripts/fix-production-oauth.sh /var/www/viby
 # 若在项目根目录外克隆了本仓库，第二个参数可指定 bundle 目录：
@@ -26,11 +26,12 @@ need_cmd node
 [[ -d "$VIBY_ROOT" ]] || die "目录不存在: $VIBY_ROOT"
 [[ -f "$BUNDLE_DIR/server.js.gz.b64" ]] || die "找不到 $BUNDLE_DIR/server.js.gz.b64（请完整克隆仓库或 scp 整个 scripts/bundles 目录）"
 [[ -f "$BUNDLE_DIR/script.js.gz.b64" ]] || die "找不到 $BUNDLE_DIR/script.js.gz.b64"
+[[ -f "$BUNDLE_DIR/share.js.gz.b64" ]] || die "找不到 $BUNDLE_DIR/share.js.gz.b64"
 
 cd "$VIBY_ROOT"
 
 ts="$(date +%Y%m%d%H%M%S)"
-for f in server.js script.js; do
+for f in server.js script.js share.js; do
   if [[ -f "$f" ]]; then
     cp -a "$f" "$f.bak.$ts"
   fi
@@ -42,7 +43,7 @@ import base64, gzip, pathlib
 root = pathlib.Path(r"$VIBY_ROOT")
 bdir = pathlib.Path(r"$BUNDLE_DIR")
 
-for name in ("server.js", "script.js"):
+for name in ("server.js", "script.js", "share.js"):
     b64 = (bdir / f"{name}.gz.b64").read_text().strip()
     raw = gzip.decompress(base64.standard_b64decode(b64))
     (root / name).write_bytes(raw)
@@ -51,6 +52,7 @@ PY
 
 node --check server.js
 node --check script.js
+node --check share.js
 
 if command -v pm2 >/dev/null 2>&1; then
   if pm2 describe viby >/dev/null 2>&1; then

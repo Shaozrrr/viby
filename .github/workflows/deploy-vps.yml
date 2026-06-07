@@ -54,7 +54,7 @@ jobs:
           T="${VPS_USER}@${VPS_HOST}"
           SSH=(ssh -i ~/.ssh/vps_deploy_key -o StrictHostKeyChecking=yes)
           rsync -avz --checksum -e "${SSH[*]}" \
-            server.js script.js index.html styles.css works.js works.html ecosystem.config.cjs package.json \
+            server.js script.js share.js index.html share.html styles.css works.js works.html ecosystem.config.cjs package.json logo-source.png \
             "$T:$R/"
           if [[ -d assets ]]; then
             rsync -avz --checksum -e "${SSH[*]}" assets/ "$T:$R/assets/"
@@ -69,13 +69,19 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           REMOTE_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
           PM2_APP: ${{ secrets.VPS_PM2_APP }}
+          VPS_ENV_B64: ${{ secrets.VPS_ENV_B64 }}
         run: |
           set -euo pipefail
           R="${REMOTE_PATH:-/var/www/viby}"
           APP="${PM2_APP:-viby}"
           T="${VPS_USER}@${VPS_HOST}"
+          if [[ -n "${VPS_ENV_B64:-}" ]]; then
+            printf '%s' "$VPS_ENV_B64" | base64 --decode > .viby.env
+            scp -i ~/.ssh/vps_deploy_key -o StrictHostKeyChecking=yes .viby.env "$T:$R/.env"
+            rm -f .viby.env
+          fi
           ssh -i ~/.ssh/vps_deploy_key -o StrictHostKeyChecking=yes "$T" \
-            "cd \"${R}\" && node --check server.js && node --check script.js && command -v pm2 >/dev/null 2>&1 && (pm2 restart \"${APP}\" || pm2 start ecosystem.config.cjs)"
+            "cd \"${R}\" && node --check server.js && node --check script.js && node --check share.js && command -v pm2 >/dev/null 2>&1 && (pm2 restart \"${APP}\" || pm2 start ecosystem.config.cjs)"
 
       - name: Optional public smoke check
         env:
@@ -89,3 +95,6 @@ jobs:
           n="$(curl -sS -m 35 "${BASE%/}/script.js" | grep -c "Array.isArray" || true)"
           echo "Array.isArray count in public script.js: $n"
           test "$n" != "0"
+          m="$(curl -sS -m 35 "${BASE%/}/share.js" | grep -c "officialPlatformUrl" || true)"
+          echo "officialPlatformUrl count in public share.js: $m"
+          test "$m" != "0"

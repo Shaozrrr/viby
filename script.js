@@ -98,6 +98,19 @@ const shareIntroLine = document.querySelector("#shareIntroLine");
 const shareOpenButton = document.querySelector("[data-share-open]");
 const shareCopyButton = document.querySelector("[data-share-copy]");
 const shareNativeButton = document.querySelector("[data-share-native]");
+const reportOverlay = document.querySelector(".report-overlay");
+const closeReportButtons = document.querySelectorAll("[data-close-report]");
+const submitReportButton = document.querySelector("[data-submit-report]");
+const reportReasonGrid = document.querySelector("#reportReasonGrid");
+const reportMessageInput = document.querySelector("#reportMessageInput");
+const reportWorkChip = document.querySelector("#reportWorkChip");
+const linkGuardOverlay = document.querySelector(".link-guard-overlay");
+const closeLinkGuardButtons = document.querySelectorAll("[data-close-link-guard]");
+const confirmLinkGuardButton = document.querySelector("[data-confirm-link-guard]");
+const linkGuardTitle = document.querySelector("#linkGuardTitle");
+const linkGuardIntro = document.querySelector("#linkGuardIntro");
+const linkGuardChip = document.querySelector("#linkGuardChip");
+const linkGuardReasons = document.querySelector("#linkGuardReasons");
 
 const storageKey = "viby-works";
 const authKey = "viby-user";
@@ -108,6 +121,9 @@ const emailCodeKey = "viby-email-code";
 const oneDay = 24 * 60 * 60 * 1000;
 const oneMonthMs = 30 * oneDay;
 const defaultAvatar = "./logo-source.png";
+const externalSafetyDisclaimer =
+  "Viby 仅提供第三方作品展示入口，不对外部站点的合法性、安全性、真实性或交易结果作保证。";
+const externalSensitiveDataWarning = "请不要在陌生页面输入密码、短信验证码、银行卡、助记词或私钥。";
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const safeTrim = (value) => String(value || "").trim();
@@ -184,6 +200,9 @@ let activeReleaseExpanded = false;
 let activeReleaseEditing = false;
 let activeShareContext = null;
 let activeShareTemplate = "aurora";
+let activeReportWorkId = "";
+let activeReportReason = "";
+let activeLinkGuardContext = null;
 let loginCooldownTimer = null;
 let loginCooldownUntil = 0;
 
@@ -196,6 +215,7 @@ let vibyBackend = {
 };
 
 let backendProbePromise = null;
+let profilePrefsCache = {};
 
 const updateLoginHint = () => {
   if (!loginHint) return;
@@ -217,6 +237,10 @@ const getStoredWorks = () => {
   } catch {
     return [];
   }
+};
+
+const setStoredWorks = (items) => {
+  localStorage.setItem(storageKey, JSON.stringify(Array.isArray(items) ? items : []));
 };
 
 const getAccounts = () => {
@@ -245,7 +269,7 @@ const saveInteractions = (interactions) => {
   localStorage.setItem(interactionsKey, JSON.stringify(interactions));
 };
 
-const getProfilePrefsMap = () => {
+const getLocalProfilePrefsMap = () => {
   try {
     return JSON.parse(localStorage.getItem(profilePrefsKey)) || {};
   } catch {
@@ -253,13 +277,41 @@ const getProfilePrefsMap = () => {
   }
 };
 
-const getProfilePrefs = (userId) => (userId ? getProfilePrefsMap()[userId] || {} : {});
+const writeLocalProfilePrefsMap = (map) => {
+  localStorage.setItem(profilePrefsKey, JSON.stringify(map || {}));
+};
+
+const getProfilePrefsMap = () => profilePrefsCache;
+
+const getProfilePrefs = (userId) => (userId ? profilePrefsCache[userId] || {} : {});
+
+const replaceProfilePrefs = (userId, nextPrefs) => {
+  if (!userId) return;
+  profilePrefsCache = {
+    ...profilePrefsCache,
+    [userId]: { ...(nextPrefs || {}) },
+  };
+};
 
 const setProfilePrefs = (userId, patch) => {
   if (!userId) return;
-  const map = getProfilePrefsMap();
-  map[userId] = { ...getProfilePrefs(userId), ...patch };
-  localStorage.setItem(profilePrefsKey, JSON.stringify(map));
+  replaceProfilePrefs(userId, { ...getProfilePrefs(userId), ...patch });
+};
+
+const getLocalProfilePrefs = (userId) => (userId ? getLocalProfilePrefsMap()[userId] || {} : {});
+
+const writeLocalProfilePrefs = (userId, nextPrefs) => {
+  if (!userId) return;
+  const map = getLocalProfilePrefsMap();
+  map[userId] = { ...(nextPrefs || {}) };
+  writeLocalProfilePrefsMap(map);
+};
+
+const clearLocalProfilePrefs = (userId) => {
+  if (!userId) return;
+  const map = getLocalProfilePrefsMap();
+  delete map[userId];
+  writeLocalProfilePrefsMap(map);
 };
 
 const getRecentChangeTimestamps = (list, limitMs = oneMonthMs) =>
@@ -365,6 +417,7 @@ const getVisualClass = (index) => ["visual-one", "visual-two", "visual-three"][i
 
 const normalizeWork = (work, index = 0) => {
   if (!work || typeof work !== "object") return null;
+  const currentUser = getUser();
   const fallbackAuthor = buildFallbackAuthor(work, index);
   const urlSafety = hydrateStoredLinkSafety(work.url, {
     kind: "primary",
@@ -379,7 +432,11 @@ const normalizeWork = (work, index = 0) => {
         : Number.isFinite(work.saves) && work.saves >= 0
           ? work.saves
           : 0;
-  const likedBy = Array.isArray(work.likedBy) ? work.likedBy.filter(Boolean) : [];
+  const likedBy = Array.isArray(work.likedBy)
+    ? work.likedBy.filter(Boolean)
+    : work.viewerHasLiked && currentUser?.id
+      ? [currentUser.id]
+      : [];
   const photos = dedupePhotos(
     Array.isArray(work.photos) ? work.photos : work.cover ? [work.cover] : [],
   );
@@ -411,6 +468,7 @@ const normalizeWork = (work, index = 0) => {
     baseLikes,
     likedBy,
     likes: baseLikes + likedBy.length,
+    viewerHasLiked: Boolean(work.viewerHasLiked || (currentUser?.id && likedBy.includes(currentUser.id))),
     urlSafetyLevel:
       safeTrim(work.urlSafetyLevel) === "caution" || urlSafety.level === "caution" ? "caution" : "normal",
     urlSafetyReasons: dedupeTextList(
@@ -434,19 +492,16 @@ const normalizeWork = (work, index = 0) => {
 };
 
 const saveUserWorks = () => {
-  localStorage.setItem(
-    storageKey,
-    JSON.stringify(
-      works.filter((work) => work.isUserCreated).map((work, index) =>
-        normalizeWork(
-          {
-            ...work,
-            cover: work.photos?.[0] || work.cover || "",
-            photos: dedupePhotos(work.photos),
-            likes: work.baseLikes + (work.likedBy?.length || 0),
-          },
-          index,
-        ),
+  setStoredWorks(
+    works.map((work, index) =>
+      normalizeWork(
+        {
+          ...work,
+          cover: work.photos?.[0] || work.cover || "",
+          photos: dedupePhotos(work.photos),
+          likes: work.baseLikes + (work.likedBy?.length || 0),
+        },
+        index,
       ),
     ),
   );
@@ -496,6 +551,306 @@ const syncAuthoredWorksWithProfile = (user = getUser()) => {
   });
 
   if (changed) saveUserWorks();
+};
+
+const sortWorksByCreatedAt = (list) => [...list].sort((a, b) => b.createdAt - a.createdAt);
+
+const getNormalizedStoredWorks = () =>
+  sortWorksByCreatedAt(
+    getStoredWorks()
+      .map((work, index) => normalizeWork(work, index))
+      .filter(Boolean),
+  );
+
+const buildWorkPayload = (work, overrides = {}) => {
+  const currentUser = getUser();
+  const author =
+    currentUser && work.authorId === currentUser.id
+      ? buildCurrentUserAuthorSnapshot(currentUser)
+      : getAuthorSnapshotForWork(work);
+
+  return {
+    id: work.id,
+    title: work.title,
+    description: work.description,
+    url: work.url,
+    urlSafetyLevel: work.urlSafetyLevel,
+    urlSafetyReasons: work.urlSafetyReasons,
+    github: work.github,
+    githubSafetyLevel: work.githubSafetyLevel,
+    githubSafetyReasons: work.githubSafetyReasons,
+    category: work.category,
+    type: work.type,
+    linkType: work.linkType,
+    tool: work.tool,
+    stack: work.stack,
+    versionTag: work.versionTag,
+    releaseNotes: work.releaseNotes,
+    devices: work.devices,
+    cover: work.photos?.[0] || work.cover || "",
+    photos: dedupePhotos(work.photos?.length ? work.photos : work.cover ? [work.cover] : []),
+    publisherAgreement: true,
+    createdAt: work.createdAt,
+    views: work.views,
+    baseLikes: work.baseLikes,
+    likedBy: work.likedBy,
+    likes: work.likes,
+    visual: work.visual,
+    authorId: author.id,
+    authorName: author.displayName,
+    authorAvatar: author.avatarUrl,
+    authorHandle: author.handle,
+    authorBio: author.bio,
+    isUserCreated: true,
+    ...overrides,
+  };
+};
+
+const syncWorksState = (list, { persist = true, applyLocalInteractions = true } = {}) => {
+  works = sortWorksByCreatedAt(
+    (Array.isArray(list) ? list : [])
+      .map((work, index) => normalizeWork(work, index))
+      .filter(Boolean),
+  );
+  if (applyLocalInteractions) applyInteractions();
+  if (persist) saveUserWorks();
+  updateStats();
+};
+
+const readJsonSafely = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+const buildTrustedHeaders = (extra = {}) => {
+  const headers = { ...extra, "X-Requested-With": "fetch" };
+  const jsTok = readDocumentCookie("viby_session_js");
+  if (jsTok) headers["X-Viby-Session"] = jsTok;
+  return headers;
+};
+
+const checkUrlSafetyOnServer = async ({ url, kind = "primary", linkType = "website" }) => {
+  const response = await fetch("/api/safety/url-check", {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ url, kind, linkType }),
+  });
+  const payload = await readJsonSafely(response);
+  if (!response.ok) throw new Error(payload.error || "安全检测失败");
+  return payload;
+};
+
+const fetchProfileFromServer = async () => {
+  const response = await fetch("/api/profile", {
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders(),
+  });
+  if (response.status === 404) return null;
+  const payload = await readJsonSafely(response);
+  if (!response.ok) throw new Error(payload.error || "个人资料加载失败");
+  return payload.profile || null;
+};
+
+const saveProfileToServer = async (patch) => {
+  const response = await fetch("/api/profile", {
+    method: "PUT",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(patch),
+  });
+  const payload = await readJsonSafely(response);
+  if (!response.ok) throw new Error(payload.error || "资料保存失败");
+  return payload.profile || null;
+};
+
+const fetchWorksFromServer = async () => {
+  const response = await fetch("/api/works", {
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders(),
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const payload = await readJsonSafely(response);
+    throw new Error(payload.error || "作品列表加载失败");
+  }
+  const payload = await readJsonSafely(response);
+  return Array.isArray(payload.works) ? payload.works : [];
+};
+
+const saveWorkToServer = async (payload, existingId = "") => {
+  const response = await fetch(existingId ? `/api/works/${encodeURIComponent(existingId)}` : "/api/works", {
+    method: existingId ? "PUT" : "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  const result = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(result.error || (response.status === 401 ? "请先登录" : "作品保存失败"));
+  }
+  return normalizeWork(result.work, 0);
+};
+
+const deleteWorkFromServer = async (id) => {
+  const response = await fetch(`/api/works/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders(),
+  });
+  const result = await readJsonSafely(response);
+  if (!response.ok) throw new Error(result.error || "删除作品失败");
+};
+
+const likeWorkOnServer = async (id) => {
+  const response = await fetch(`/api/works/${encodeURIComponent(id)}/like`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders(),
+  });
+  const result = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(result.error || (response.status === 401 ? "登录后才能点赞" : "点赞失败"));
+  }
+  return normalizeWork(result.work, 0);
+};
+
+const trackViewOnServer = async (id) => {
+  const response = await fetch(`/api/works/${encodeURIComponent(id)}/view`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    keepalive: true,
+    headers: buildTrustedHeaders(),
+  });
+  const result = await readJsonSafely(response);
+  if (!response.ok) throw new Error(result.error || "浏览记录失败");
+  return normalizeWork(result.work, 0);
+};
+
+const reportWorkToServer = async (id, payload) => {
+  const response = await fetch(`/api/works/${encodeURIComponent(id)}/report`, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(payload),
+  });
+  const result = await readJsonSafely(response);
+  if (!response.ok) throw new Error(result.error || "举报提交失败");
+  return result;
+};
+
+const migrateLocalProfilePrefsToServer = async (user) => {
+  if (!vibyBackend.apiOnline || !user?.id) return null;
+  const localPrefs = getLocalProfilePrefs(user.id);
+  const hasMeaningfulPrefs = Boolean(
+    safeTrim(localPrefs.displayName) ||
+      safeTrim(localPrefs.avatarDataUrl) ||
+      safeTrim(localPrefs.signature) ||
+      (Array.isArray(localPrefs.nameChanges) && localPrefs.nameChanges.length) ||
+      (Array.isArray(localPrefs.avatarChanges) && localPrefs.avatarChanges.length),
+  );
+  if (!hasMeaningfulPrefs) return null;
+
+  try {
+    const profile = await saveProfileToServer(localPrefs);
+    if (profile) {
+      replaceProfilePrefs(user.id, profile);
+      clearLocalProfilePrefs(user.id);
+      return profile;
+    }
+  } catch (error) {
+    console.warn("[viby] migrate local profile prefs failed", error);
+  }
+  return null;
+};
+
+const migrateLocalLikesToServer = async (serverWorks = []) => {
+  if (!vibyBackend.apiOnline) return serverWorks;
+  const user = getUser();
+  if (!user?.id) return serverWorks;
+
+  const interactions = getInteractions();
+  const serverMap = new Map(serverWorks.map((work) => [work.id, work]));
+  let changed = false;
+
+  for (const [workId, interaction] of Object.entries(interactions)) {
+    if (!Array.isArray(interaction?.likedBy) || !interaction.likedBy.includes(user.id)) continue;
+    const remoteWork = serverMap.get(workId);
+    if (!remoteWork || remoteWork.viewerHasLiked) continue;
+    try {
+      const saved = await likeWorkOnServer(workId);
+      serverMap.set(workId, saved);
+      changed = true;
+    } catch (error) {
+      console.warn("[viby] migrate local like failed", workId, error);
+    }
+  }
+
+  return changed ? sortWorksByCreatedAt([...serverMap.values()]) : serverWorks;
+};
+
+const migrateLocalWorksToServer = async (serverWorks = []) => {
+  if (!vibyBackend.apiOnline) return serverWorks;
+  const user = getUser();
+  if (!user) return serverWorks;
+
+  const localAuthoredWorks = getNormalizedStoredWorks().filter(
+    (work) => work.isUserCreated && work.authorId === user.id,
+  );
+  if (!localAuthoredWorks.length) return serverWorks;
+
+  const existingIds = new Set(serverWorks.map((work) => work.id));
+  const migrated = [];
+
+  for (const work of localAuthoredWorks) {
+    if (existingIds.has(work.id)) continue;
+    try {
+      const saved = await saveWorkToServer(buildWorkPayload(work));
+      if (saved) {
+        existingIds.add(saved.id);
+        migrated.push(saved);
+      }
+    } catch (error) {
+      console.warn("[viby] migrate local work failed", work.id, error);
+    }
+  }
+
+  if (!migrated.length) return serverWorks;
+  return sortWorksByCreatedAt([...migrated, ...serverWorks]);
+};
+
+const loadWorks = async () => {
+  await ensureBackendProbe();
+
+  if (!vibyBackend.apiOnline) {
+    syncWorksState(getNormalizedStoredWorks(), { persist: false });
+    renderWorks();
+    return;
+  }
+
+  try {
+    const remoteWorks = await fetchWorksFromServer();
+    const migratedWorks = await migrateLocalWorksToServer(remoteWorks || []);
+    const hydratedWorks = await migrateLocalLikesToServer(migratedWorks || []);
+    syncWorksState(hydratedWorks || [], { persist: true, applyLocalInteractions: false });
+    renderWorks();
+  } catch (error) {
+    console.warn("[viby] load works fallback to local cache", error);
+    syncWorksState(getNormalizedStoredWorks(), { persist: false });
+    renderWorks();
+  }
 };
 
 const formatNumber = (value) => {
@@ -760,6 +1115,113 @@ const buildLinkRiskSummary = (work) => {
 
 const hasLinkRisk = (work) => buildLinkRiskSummary(work).length > 0;
 
+const getWorkById = (id) => works.find((item) => item.id === id);
+
+const getHostnameLabel = (value) => {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return safeTrim(value);
+  }
+};
+
+const buildOutboundLinkContext = (work, kind = "primary") => {
+  if (!work) return null;
+  const isGithub = kind === "github";
+  const url = safeTrim(isGithub ? work.github : work.url);
+  if (!url) return null;
+  const reasons = dedupeTextList(isGithub ? work.githubSafetyReasons : work.urlSafetyReasons);
+  const risky = safeTrim(isGithub ? work.githubSafetyLevel : work.urlSafetyLevel) === "caution";
+  return {
+    workId: work.id,
+    kind,
+    url,
+    hostname: getHostnameLabel(url),
+    title: work.title,
+    label: isGithub ? "打开 GitHub" : getPrimaryActionLabel(work),
+    reasons,
+    shouldGuard: risky,
+    linkType: isGithub ? "github" : work.linkType,
+  };
+};
+
+const renderLinkGuard = (context) => {
+  if (!linkGuardChip || !linkGuardTitle || !linkGuardIntro || !linkGuardReasons) return;
+  if (!context) {
+    linkGuardChip.innerHTML = "";
+    linkGuardReasons.hidden = true;
+    linkGuardReasons.innerHTML = "";
+    return;
+  }
+
+  linkGuardTitle.textContent = context.shouldGuard ? "即将访问存在风险提示的外链" : "即将离开 Viby";
+  linkGuardIntro.textContent = context.shouldGuard
+    ? `系统已为这条链接标记风险提示。继续前，请再次核对目标域名，并牢记：${externalSensitiveDataWarning}`
+    : `你将访问第三方站点。继续前，请自行核对域名与页面真实性。${externalSensitiveDataWarning}`;
+  linkGuardChip.innerHTML = `
+    <strong>${escapeHTML(context.label)}</strong>
+    <small>${escapeHTML(context.hostname || context.url)}</small>
+  `;
+  if (context.reasons.length) {
+    linkGuardReasons.hidden = false;
+    linkGuardReasons.innerHTML = context.reasons
+      .map((reason) => `<div class="link-guard-reason">${escapeHTML(reason)}</div>`)
+      .join("");
+  } else {
+    linkGuardReasons.hidden = true;
+    linkGuardReasons.innerHTML = "";
+  }
+};
+
+const closeLinkGuard = () => {
+  blurOverlayFocus(linkGuardOverlay);
+  linkGuardOverlay?.classList.remove("is-open");
+  linkGuardOverlay?.setAttribute("aria-hidden", "true");
+  activeLinkGuardContext = null;
+  renderLinkGuard(null);
+};
+
+const openLinkGuard = (context) => {
+  if (!context || !linkGuardOverlay) return;
+  activeLinkGuardContext = context;
+  renderLinkGuard(context);
+  linkGuardOverlay.classList.add("is-open");
+  linkGuardOverlay.setAttribute("aria-hidden", "false");
+};
+
+const openOutboundLink = (url) => {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const handleOutboundWorkLink = async (workId, kind = "primary") => {
+  const work = getWorkById(workId);
+  const context = buildOutboundLinkContext(work, kind);
+  if (!context) return false;
+  if (vibyBackend.apiOnline) {
+    try {
+      const liveSafety = await checkUrlSafetyOnServer({
+        url: context.url,
+        kind: context.kind,
+        linkType: context.linkType,
+      });
+      const liveReasons = dedupeTextList([...(context.reasons || []), ...(liveSafety.reasons || [])]);
+      context.reasons = liveReasons;
+      context.shouldGuard =
+        context.shouldGuard || ["blocked", "malicious", "caution"].includes(safeTrim(liveSafety.status || "").toLowerCase());
+    } catch (error) {
+      console.warn("[viby] live url safety check failed", error);
+    }
+  }
+  if (context.shouldGuard) {
+    openLinkGuard(context);
+    return true;
+  }
+  if (context.kind === "primary") void incrementViews(workId);
+  openOutboundLink(context.url);
+  return true;
+};
+
 const getPrimaryActionLabel = (work) =>
   safeTrim(work.linkType).toLowerCase() === "appstore" ? "查看 App Store" : "访问作品";
 
@@ -775,13 +1237,37 @@ const getSelectedDevices = () => {
   return devices.length ? devices : ["电脑端"];
 };
 
-const updateStats = () => {
-  statWorks.textContent = works.length;
-  statViews.textContent = formatNumber(works.reduce((sum, work) => sum + (work.views || 0), 0));
-  statLikes.textContent = formatNumber(works.reduce((sum, work) => sum + (work.likes || 0), 0));
+const isPublishedWork = (work) => safeTrim(work?.moderationStatus || "published") === "published";
+const getPublicWorks = () => works.filter((work) => isPublishedWork(work));
+
+const getModerationTone = (work) => {
+  const status = safeTrim(work?.moderationStatus || "published");
+  if (status === "pending_review") return { label: "待审核", className: "is-pending" };
+  if (status === "blocked") return { label: "已拦截", className: "is-blocked" };
+  return { label: "", className: "" };
 };
 
-const likeWork = (id) => {
+const buildModerationSummary = (work) => {
+  const reasons = dedupeTextList(work?.moderationReasons || []);
+  const tone = getModerationTone(work);
+  if (!tone.label) return "";
+  return reasons.length ? `${tone.label}：${reasons.join("；")}` : `${tone.label}：系统正在复核这件作品`;
+};
+
+const buildModerationBadge = (work) => {
+  const tone = getModerationTone(work);
+  if (!tone.label || !isOwnWork(work)) return "";
+  return `<span class="work-status-chip ${tone.className}">${escapeHTML(tone.label)}</span>`;
+};
+
+const updateStats = () => {
+  const publicWorks = getPublicWorks();
+  statWorks.textContent = publicWorks.length;
+  statViews.textContent = formatNumber(publicWorks.reduce((sum, work) => sum + (work.views || 0), 0));
+  statLikes.textContent = formatNumber(publicWorks.reduce((sum, work) => sum + (work.likes || 0), 0));
+};
+
+const likeWork = async (id) => {
   const user = getUser();
   if (!user) {
     openLogin();
@@ -791,6 +1277,20 @@ const likeWork = (id) => {
 
   const work = works.find((item) => item.id === id);
   if (!work) return false;
+
+  await ensureBackendProbe();
+  if (vibyBackend.apiOnline) {
+    try {
+      const saved = await likeWorkOnServer(id);
+      works = works.map((item) => (item.id === id ? saved : item));
+      saveUserWorks();
+      showToast("已点赞，榜单会实时更新");
+      return true;
+    } catch (error) {
+      showToast(error.message || "点赞失败，请稍后再试");
+      return false;
+    }
+  }
 
   const likedBy = Array.isArray(work.likedBy) ? [...work.likedBy] : [];
   if (likedBy.includes(user.id)) {
@@ -810,9 +1310,27 @@ const likeWork = (id) => {
   return true;
 };
 
-const incrementViews = (id) => {
+const incrementViews = async (id) => {
   const work = works.find((item) => item.id === id);
   if (!work) return;
+
+  await ensureBackendProbe();
+  if (vibyBackend.apiOnline) {
+    try {
+      const saved = await trackViewOnServer(id);
+      works = works.map((item) => (item.id === id ? saved : item));
+      saveUserWorks();
+      updateStats();
+      renderWorks();
+      if (activeDetailWorkId === id) {
+        detailViews.textContent = formatNumber(saved.views);
+      }
+      return;
+    } catch (error) {
+      console.warn("[viby] track view failed", error);
+    }
+  }
+
   work.views += 1;
   saveUserWorks();
   updateStats();
@@ -842,7 +1360,7 @@ const bindTilt = (cards) => {
 
 const getRankedWorks = () => {
   const now = Date.now();
-  const ranked = [...works];
+  const ranked = [...getPublicWorks()];
 
   if (activeRank === "latest") {
     return ranked.sort((a, b) => b.createdAt - a.createdAt);
@@ -862,6 +1380,7 @@ const getRankedWorks = () => {
 
 const buildCardMetaItems = (work) => {
   const items = [
+    isOwnWork(work) ? getModerationTone(work).label : "",
     (work.devices || ["电脑端"]).join(" / "),
     safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
     work.github ? "GitHub" : "",
@@ -877,6 +1396,7 @@ const buildCardMetaItems = (work) => {
 
 const buildDetailMetaItems = (work) => {
   const items = [
+    isOwnWork(work) ? getModerationTone(work).label : "",
     getCategoryText(work.category),
     (work.devices || ["电脑端"]).join(" / "),
     safeTrim(work.linkType).toLowerCase() === "appstore" ? "App Store" : "",
@@ -1016,7 +1536,13 @@ const renderWorks = () => {
       const author = getAuthorSnapshotForWork(work);
       const meta = buildCardMetaItems(work);
       return `
-        <article class="work-card" data-id="${work.id}" data-category="${escapeHTML(work.category)}" data-tilt>
+        <article
+          class="work-card"
+          data-id="${work.id}"
+          data-category="${escapeHTML(work.category)}"
+          data-tilt
+          style="--card-delay:${index * 70}ms"
+        >
           <div class="rank-badge ${index < 3 ? `rank-featured rank-${index + 1}` : ""}">${rankLabels[index] || index + 1}</div>
           <div class="work-visual ${work.cover ? "has-cover" : work.visual}">
             ${work.cover ? `<img src="${work.cover}" alt="${escapeHTML(work.title)} 封面" />` : ""}
@@ -1024,6 +1550,7 @@ const renderWorks = () => {
           <div class="work-content">
             <div class="work-topline">
               <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
+              ${buildModerationBadge(work)}
               <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
             </div>
             <div class="work-copy">
@@ -1047,8 +1574,8 @@ const renderWorks = () => {
               </div>
             </div>
             <div class="work-actions">
-              <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
-              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
+              <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="primary">${getPrimaryActionLabel(work)}</a>
+              ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="github">GitHub</a>` : ""}
               <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
             </div>
           </div>
@@ -1275,14 +1802,17 @@ const openDetail = (id, options = {}) => {
   detailViews.textContent = formatNumber(work.views);
   detailDate.textContent = formatDetailDate(work.createdAt);
   detailActions.innerHTML = `
-    <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-visit="${work.id}">${getPrimaryActionLabel(work)}</a>
-    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
+    <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="primary">${getPrimaryActionLabel(work)}</a>
+    ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="github">GitHub</a>` : ""}
     <button type="button" data-share-work="${work.id}">分享作品</button>
     <button type="button" data-like="${work.id}">点赞 ${formatNumber(work.likes)}</button>
+    <button type="button" data-report-work="${work.id}">举报作品</button>
     ${isOwnWork(work) ? `<button type="button" data-edit-work="${work.id}">编辑作品</button>` : ""}
     ${isOwnWork(work) ? `<button type="button" class="danger-link" data-delete-work="${work.id}">删除作品</button>` : ""}
   `;
   const warningLines = buildLinkRiskSummary(work);
+  const moderationLine = buildModerationSummary(work);
+  if (moderationLine) warningLines.unshift(moderationLine);
   if (detailLinkWarning) {
     if (warningLines.length) {
       detailLinkWarning.hidden = false;
@@ -1321,11 +1851,23 @@ const stepDetailGallery = (direction) => {
   renderDetailGallery();
 };
 
-const deleteWork = (id) => {
+const deleteWork = async (id) => {
   const work = works.find((item) => item.id === id);
   if (!work || !isOwnWork(work)) return;
   const confirmed = window.confirm(`确定删除《${work.title}》吗？删除后将无法恢复。`);
   if (!confirmed) return;
+
+  try {
+    await ensureBackendProbe();
+    if (!vibyBackend.apiOnline) {
+      showToast("当前环境未连接 Viby 后端，暂时无法删除社区作品");
+      return;
+    }
+    await deleteWorkFromServer(id);
+  } catch (error) {
+    showToast(error.message || "删除作品失败，请稍后再试");
+    return;
+  }
 
   works = works.filter((item) => item.id !== id);
   saveUserWorks();
@@ -1341,13 +1883,24 @@ const deleteWork = (id) => {
   showToast("作品已删除");
 };
 
-const saveReleaseForWork = (id, versionTag, releaseNotes) => {
+const saveReleaseForWork = async (id, versionTag, releaseNotes) => {
   const work = works.find((item) => item.id === id);
   if (!work || !isOwnWork(work)) return false;
-  work.versionTag = safeTrim(versionTag);
-  work.releaseNotes = parseReleaseNotes(releaseNotes);
-  saveUserWorks();
-  return true;
+  try {
+    const saved = await saveWorkToServer(
+      {
+        versionTag: safeTrim(versionTag),
+        releaseNotes: parseReleaseNotes(releaseNotes),
+      },
+      id,
+    );
+    works = works.map((item) => (item.id === id ? saved : item));
+    saveUserWorks();
+    return true;
+  } catch (error) {
+    showToast(error.message || "版本记录保存失败");
+    return false;
+  }
 };
 
 const getWorksByAuthor = (context) => {
@@ -1437,6 +1990,7 @@ const renderProfilePanel = () => {
                 <span>${formatNumber(work.views)} 浏览</span>
                 <span>${formatNumber(work.likes)} 赞</span>
                 <span>${Math.max(work.photos?.length || 0, work.cover ? 1 : 0)} 张图</span>
+                ${!isPublishedWork(work) ? `<span>${escapeHTML(getModerationTone(work).label)}</span>` : ""}
               </div>
             </div>
           </button>
@@ -1487,6 +2041,25 @@ const openProfile = async (options = {}) => {
   profileOverlay.setAttribute("aria-hidden", "false");
 };
 
+const officialPlatformOrigin = "https://viby.ink";
+
+const isLocalPlatformOrigin = (value) => {
+  const raw = safeTrim(value);
+  if (!raw) return true;
+  try {
+    const parsed = new URL(raw);
+    return ["localhost", "127.0.0.1"].includes(parsed.hostname) || parsed.hostname.endsWith(".local");
+  } catch {
+    return true;
+  }
+};
+
+const getPreferredPlatformOrigin = () => {
+  const current = safeTrim(window.location.origin);
+  if (current && !isLocalPlatformOrigin(current)) return current;
+  return officialPlatformOrigin;
+};
+
 const buildSharePayload = (context, template = activeShareTemplate) => {
   if (!context) return null;
 
@@ -1501,6 +2074,11 @@ const buildSharePayload = (context, template = activeShareTemplate) => {
       description: work.description,
       category: getCategoryText(work.category),
       cover: work.cover || work.photos?.[0] || "",
+      sourceWorkId: work.id,
+      stats: {
+        views: work.views || 0,
+        likes: work.likes || 0,
+      },
       meta: buildDetailMetaItems(work).slice(0, 3),
       versionTag: work.versionTag || "",
       author: {
@@ -1511,6 +2089,12 @@ const buildSharePayload = (context, template = activeShareTemplate) => {
       primaryUrl: work.url,
       primaryLabel: getPrimaryActionLabel(work),
       github: work.github || "",
+      urlSafetyLevel: work.urlSafetyLevel || "normal",
+      urlSafetyReasons: dedupeTextList(work.urlSafetyReasons),
+      githubSafetyLevel: work.githubSafetyLevel || "normal",
+      githubSafetyReasons: dedupeTextList(work.githubSafetyReasons),
+      legalNotice: `${externalSafetyDisclaimer}${externalSensitiveDataWarning}`,
+      platformUrl: getPreferredPlatformOrigin(),
       createdAt: work.createdAt,
     };
   }
@@ -1540,6 +2124,8 @@ const buildSharePayload = (context, template = activeShareTemplate) => {
       },
       worksPreview,
       libraryUrl: getAbsolutePathUrl(buildWorksLibraryUrl(profile)),
+      legalNotice: `${externalSafetyDisclaimer}${externalSensitiveDataWarning}`,
+      platformUrl: getPreferredPlatformOrigin(),
     };
   }
 
@@ -1618,6 +2204,72 @@ const closeShareOverlay = () => {
   activeShareContext = null;
 };
 
+const renderReportWorkChip = () => {
+  if (!reportWorkChip) return;
+  const work = works.find((item) => item.id === activeReportWorkId);
+  if (!work) {
+    reportWorkChip.innerHTML = "";
+    return;
+  }
+  reportWorkChip.innerHTML = `
+    <span class="report-work-chip-kicker">当前作品</span>
+    <strong>${escapeHTML(work.title)}</strong>
+    <small>${escapeHTML(getCategoryText(work.category))} · ${escapeHTML(safeTrim(work.authorName) || "匿名创作者")}</small>
+  `;
+};
+
+const openReportOverlay = async (workId) => {
+  await syncServerSession();
+  if (!getUser()) {
+    openLogin();
+    showToast("请先登录后再举报作品");
+    return;
+  }
+  const work = works.find((item) => item.id === workId);
+  if (!work) return;
+  activeReportWorkId = workId;
+  activeReportReason = "";
+  if (reportMessageInput) reportMessageInput.value = "";
+  reportReasonGrid?.querySelectorAll("[data-report-reason]").forEach((button) => {
+    button.classList.remove("is-active");
+  });
+  renderReportWorkChip();
+  reportOverlay?.classList.add("is-open");
+  reportOverlay?.setAttribute("aria-hidden", "false");
+};
+
+const closeReportOverlay = () => {
+  blurOverlayFocus(reportOverlay);
+  reportOverlay?.classList.remove("is-open");
+  reportOverlay?.setAttribute("aria-hidden", "true");
+  activeReportWorkId = "";
+  activeReportReason = "";
+  if (reportMessageInput) reportMessageInput.value = "";
+};
+
+const submitReport = async () => {
+  if (!activeReportWorkId) return;
+  if (!activeReportReason) {
+    showToast("请先选择一个举报原因");
+    return;
+  }
+
+  try {
+    const result = await reportWorkToServer(activeReportWorkId, {
+      reason: activeReportReason,
+      message: safeTrim(reportMessageInput?.value || ""),
+    });
+    closeReportOverlay();
+    showToast(
+      safeTrim(result?.moderationStatus) === "pending_review"
+        ? "举报已提交，这件作品已转入人工审核"
+        : "举报已提交，我们会尽快处理",
+    );
+  } catch (error) {
+    showToast(error.message || "举报提交失败，请稍后再试");
+  }
+};
+
 const createSharePage = async (mode = "copy") => {
   if (window.location.protocol === "file:") {
     showToast("请先通过 npm start 启动站点，再生成分享页");
@@ -1631,7 +2283,9 @@ const createSharePage = async (mode = "copy") => {
 
   const response = await fetch("/api/shares", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    cache: "no-store",
+    headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(payload),
   });
   const result = await response.json().catch(() => ({}));
@@ -1694,7 +2348,11 @@ const probeBackend = async () => {
   }
 
   try {
-    const response = await fetch("/api/health", { credentials: "same-origin", cache: "no-store" });
+    const response = await fetch("/api/health", {
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: buildTrustedHeaders(),
+    });
     if (response.status === 404) {
       vibyBackend = {
         checked: true,
@@ -1743,9 +2401,7 @@ const ensureBackendProbe = () => {
 
 const syncServerSession = async () => {
   try {
-    const jsTok = readDocumentCookie("viby_session_js");
-    const headers = {};
-    if (jsTok) headers["X-Viby-Session"] = jsTok;
+    const headers = buildTrustedHeaders();
 
     const response = await fetch("/api/me", { credentials: "include", cache: "no-store", headers });
     if (response.status === 404) return null;
@@ -1760,6 +2416,7 @@ const syncServerSession = async () => {
     if (response.status === 401) {
       localStorage.removeItem(authKey);
       document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
+      profilePrefsCache = {};
       updateLoginState();
       return null;
     }
@@ -1776,6 +2433,7 @@ const syncServerSession = async () => {
         provider: data.user.provider,
       }),
     );
+    replaceProfilePrefs(data.user.id, data.profile || {});
     updateLoginState();
     return data.user;
   } catch {
@@ -2128,7 +2786,7 @@ sendCodeButton.addEventListener("click", async () => {
       method: "POST",
       credentials: "include",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ email }),
     });
     const data = await response.json().catch(() => ({}));
@@ -2166,7 +2824,7 @@ loginForm.addEventListener("submit", async (event) => {
       method: "POST",
       credentials: "include",
       cache: "no-store",
-      headers: { "Content-Type": "application/json" },
+      headers: buildTrustedHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ email, code }),
     });
     const result = await response.json().catch(() => ({}));
@@ -2186,9 +2844,10 @@ loginForm.addEventListener("submit", async (event) => {
           provider: result.user.provider,
         }),
       );
-    } else {
-      await syncServerSession();
     }
+    await syncServerSession();
+    await migrateLocalProfilePrefsToServer(getUser());
+    await loadWorks();
 
     loginForm.reset();
     updateLoginState();
@@ -2272,9 +2931,14 @@ profileShareButton?.addEventListener("click", () => {
   openShareOverlay({ kind: "profile", profile: activeProfileContext });
 });
 
-profileSaveButton.addEventListener("click", () => {
+profileSaveButton.addEventListener("click", async () => {
   const user = getUser();
   if (!user) return;
+  await ensureBackendProbe();
+  if (!vibyBackend.apiOnline) {
+    showToast("当前环境未连接 Viby 后端，暂时无法保存资料");
+    return;
+  }
   const name = safeTrim(profileDisplayNameInput.value);
   const signature = safeTrim(profileIntroLine.value);
   if (!name) {
@@ -2309,7 +2973,16 @@ profileSaveButton.addEventListener("click", () => {
     patch.avatarChanges = [...nextAvatarChanges, Date.now()];
   }
 
-  setProfilePrefs(user.id, patch);
+  let savedProfile = null;
+  try {
+    savedProfile = await saveProfileToServer(patch);
+  } catch (error) {
+    showToast(error.message || "资料保存失败，请稍后再试");
+    return;
+  }
+
+  replaceProfilePrefs(user.id, savedProfile || { ...getProfilePrefs(user.id), ...patch });
+  clearLocalProfilePrefs(user.id);
   pendingProfileAvatar = null;
   syncAuthoredWorksWithProfile(user);
   updateLoginState();
@@ -2319,9 +2992,14 @@ profileSaveButton.addEventListener("click", () => {
   showToast("资料已保存");
 });
 
-profileResetAvatarButton.addEventListener("click", () => {
+profileResetAvatarButton.addEventListener("click", async () => {
   const user = getUser();
   if (!user) return;
+  await ensureBackendProbe();
+  if (!vibyBackend.apiOnline) {
+    showToast("当前环境未连接 Viby 后端，暂时无法修改资料");
+    return;
+  }
   const prefs = { ...getProfilePrefs(user.id) };
   const recentAvatarChanges = getRecentChangeTimestamps(prefs.avatarChanges);
   if (!prefs.avatarDataUrl) {
@@ -2334,9 +3012,17 @@ profileResetAvatarButton.addEventListener("click", () => {
   }
   delete prefs.avatarDataUrl;
   prefs.avatarChanges = [...recentAvatarChanges, Date.now()];
-  const map = getProfilePrefsMap();
-  map[user.id] = prefs;
-  localStorage.setItem(profilePrefsKey, JSON.stringify(map));
+
+  let savedProfile = null;
+  try {
+    savedProfile = await saveProfileToServer(prefs);
+  } catch (error) {
+    showToast(error.message || "资料保存失败，请稍后再试");
+    return;
+  }
+
+  replaceProfilePrefs(user.id, savedProfile || prefs);
+  clearLocalProfilePrefs(user.id);
   pendingProfileAvatar = null;
   syncAuthoredWorksWithProfile(user);
   updateLoginState();
@@ -2348,12 +3034,18 @@ profileResetAvatarButton.addEventListener("click", () => {
 
 profileLogoutButton.addEventListener("click", async () => {
   try {
-    await fetch("/api/logout", { method: "POST", credentials: "include", cache: "no-store" });
+    await fetch("/api/logout", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: buildTrustedHeaders(),
+    });
   } catch {
     /* 网络异常时仍清理本地态 */
   }
   localStorage.removeItem(authKey);
   document.cookie = "viby_session_js=; Path=/; Max-Age=0; SameSite=Lax";
+  profilePrefsCache = {};
   closeProfile();
   updateLoginState();
   renderWorks();
@@ -2386,20 +3078,27 @@ detailAuthorCard.addEventListener("click", (event) => {
 });
 
 detailActions.addEventListener("click", (event) => {
-  const visitLink = event.target.closest("[data-visit]");
+  const outboundLink = event.target.closest("[data-outbound-work]");
   const likeButton = event.target.closest("[data-like]");
   const editButton = event.target.closest("[data-edit-work]");
   const shareButton = event.target.closest("[data-share-work]");
+  const reportButton = event.target.closest("[data-report-work]");
   const deleteButton = event.target.closest("[data-delete-work]");
 
-  if (visitLink) {
-    incrementViews(visitLink.dataset.visit);
+  if (outboundLink) {
+    event.preventDefault();
+    handleOutboundWorkLink(outboundLink.dataset.outboundWork, safeTrim(outboundLink.dataset.outboundKind) || "primary");
     return;
   }
 
-  if (likeButton && likeWork(likeButton.dataset.like)) {
-    openDetail(likeButton.dataset.like, { photoIndex: activeDetailPhotoIndex });
-    renderWorks();
+  if (likeButton) {
+    void (async () => {
+      if (await likeWork(likeButton.dataset.like)) {
+        openDetail(likeButton.dataset.like, { photoIndex: activeDetailPhotoIndex });
+        renderWorks();
+      }
+    })();
+    return;
   }
 
   if (editButton) {
@@ -2413,12 +3112,17 @@ detailActions.addEventListener("click", (event) => {
     return;
   }
 
+  if (reportButton) {
+    void openReportOverlay(reportButton.dataset.reportWork);
+    return;
+  }
+
   if (deleteButton) {
-    deleteWork(deleteButton.dataset.deleteWork);
+    void deleteWork(deleteButton.dataset.deleteWork);
   }
 });
 
-detailReleaseCard?.addEventListener("click", (event) => {
+detailReleaseCard?.addEventListener("click", async (event) => {
   event.stopPropagation();
   const work = works.find((item) => item.id === activeDetailWorkId);
   if (!work) return;
@@ -2462,7 +3166,7 @@ detailReleaseCard?.addEventListener("click", (event) => {
   if (saveButton && canEdit) {
     const versionInput = detailReleaseCard.querySelector("#detailReleaseVersionInput");
     const notesInput = detailReleaseCard.querySelector("#detailReleaseNotesInput");
-    const saved = saveReleaseForWork(
+    const saved = await saveReleaseForWork(
       work.id,
       versionInput?.value || "",
       notesInput?.value || "",
@@ -2505,6 +3209,34 @@ shareTemplateGrid?.addEventListener("click", (event) => {
 shareOpenButton?.addEventListener("click", () => void createSharePage("open"));
 shareCopyButton?.addEventListener("click", () => void createSharePage("copy"));
 shareNativeButton?.addEventListener("click", () => void createSharePage("native"));
+closeReportButtons.forEach((button) => button.addEventListener("click", closeReportOverlay));
+closeLinkGuardButtons.forEach((button) => button.addEventListener("click", closeLinkGuard));
+
+reportOverlay?.addEventListener("click", (event) => {
+  if (event.target === reportOverlay) closeReportOverlay();
+});
+
+linkGuardOverlay?.addEventListener("click", (event) => {
+  if (event.target === linkGuardOverlay) closeLinkGuard();
+});
+
+reportReasonGrid?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-report-reason]");
+  if (!button) return;
+  activeReportReason = safeTrim(button.dataset.reportReason);
+  reportReasonGrid.querySelectorAll("[data-report-reason]").forEach((item) => {
+    item.classList.toggle("is-active", item === button);
+  });
+});
+
+submitReportButton?.addEventListener("click", () => void submitReport());
+confirmLinkGuardButton?.addEventListener("click", () => {
+  const context = activeLinkGuardContext;
+  if (!context?.url) return;
+  if (context.kind === "primary" && context.workId) void incrementViews(context.workId);
+  openOutboundLink(context.url);
+  closeLinkGuard();
+});
 
 rankButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -2516,18 +3248,21 @@ rankButtons.forEach((button) => {
 });
 
 workGrid.addEventListener("click", (event) => {
-  const visitLink = event.target.closest("[data-visit]");
+  const outboundLink = event.target.closest("[data-outbound-work]");
   const likeButton = event.target.closest("[data-like]");
   const authorButton = event.target.closest("[data-open-author]");
   const card = event.target.closest(".work-card");
 
-  if (visitLink) {
-    incrementViews(visitLink.dataset.visit);
+  if (outboundLink) {
+    event.preventDefault();
+    handleOutboundWorkLink(outboundLink.dataset.outboundWork, safeTrim(outboundLink.dataset.outboundKind) || "primary");
     return;
   }
 
   if (likeButton) {
-    if (likeWork(likeButton.dataset.like)) renderWorks();
+    void (async () => {
+      if (await likeWork(likeButton.dataset.like)) renderWorks();
+    })();
     return;
   }
 
@@ -2762,6 +3497,12 @@ submitForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  await ensureBackendProbe();
+  if (!vibyBackend.apiOnline) {
+    showToast("当前环境未连接 Viby 后端，暂时无法正式发布到社区");
+    return;
+  }
+
   const author = buildCurrentUserAuthorSnapshot(user);
   const data = new FormData(submitForm);
   const category = safeTrim(data.get("category"));
@@ -2803,6 +3544,8 @@ submitForm.addEventListener("submit", async (event) => {
     devices: getSelectedDevices(),
     cover: croppedCovers[0],
     photos: dedupePhotos(croppedCovers),
+    contactPage: safeTrim(data.get("contactPage")),
+    publisherAgreement: safeTrim(data.get("publisherAgreement")),
     isUserCreated: true,
     authorId: author.id,
     authorName: author.displayName,
@@ -2812,7 +3555,7 @@ submitForm.addEventListener("submit", async (event) => {
   };
 
   const existingWork = editingWorkId ? works.find((item) => item.id === editingWorkId) : null;
-  const nextWork = normalizeWork(
+  const nextDraft = normalizeWork(
     existingWork
       ? {
           ...existingWork,
@@ -2831,10 +3574,21 @@ submitForm.addEventListener("submit", async (event) => {
     existingWork ? works.indexOf(existingWork) : works.length,
   );
 
+  let savedWork;
+  try {
+    savedWork = await saveWorkToServer(
+      buildWorkPayload(nextDraft),
+      existingWork ? existingWork.id : "",
+    );
+  } catch (error) {
+    showToast(error.message || "作品保存失败，请稍后再试");
+    return;
+  }
+
   if (existingWork) {
-    works = works.map((item) => (item.id === existingWork.id ? nextWork : item));
+    works = works.map((item) => (item.id === existingWork.id ? savedWork : item));
   } else {
-    works = [nextWork, ...works];
+    works = [savedWork, ...works];
   }
   saveUserWorks();
   resetSubmitDraft();
@@ -2845,13 +3599,16 @@ submitForm.addEventListener("submit", async (event) => {
   });
   renderWorks();
   closePanel();
-  showToast(
-    existingWork
-      ? "作品内容已更新"
-      : urlAnalysis.level === "caution"
-        ? "作品已发布，并已为外链添加谨慎提示"
-        : "作品已发布，已进入最新列表",
-  );
+  const moderationStatus = safeTrim(savedWork?.moderationStatus || "published");
+  if (moderationStatus === "pending_review") {
+    showToast("作品已提交，正在进入审核队列，通过后才会公开展示");
+    return;
+  }
+  if (moderationStatus === "blocked") {
+    showToast("作品已被系统拦截，请根据提示修改后再尝试发布");
+    return;
+  }
+  showToast(existingWork ? "作品内容已更新" : urlAnalysis.level === "caution" ? "作品已发布，并已为外链添加谨慎提示" : "作品已发布，已进入最新列表");
 });
 
 window.addEventListener("keydown", (event) => {
@@ -2862,6 +3619,8 @@ window.addEventListener("keydown", (event) => {
     closeLogin();
     closeProfile();
     closeShareOverlay();
+    closeReportOverlay();
+    closeLinkGuard();
   }
 
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -2884,20 +3643,14 @@ window.addEventListener("resize", () => {
   }
 });
 
-works = getStoredWorks()
-  .map((work, index) => normalizeWork(work, index))
-  .filter(Boolean)
-  .sort((a, b) => b.createdAt - a.createdAt);
+works = getNormalizedStoredWorks();
 
 try {
   applyInteractions();
   renderWorks();
 } catch (error) {
   console.error("[viby] 作品列表渲染失败", error);
-  works = getStoredWorks()
-    .map((work, index) => normalizeWork(work, index))
-    .filter(Boolean)
-    .sort((a, b) => b.createdAt - a.createdAt);
+  works = getNormalizedStoredWorks();
   applyInteractions();
   renderWorks();
 }
@@ -2910,7 +3663,22 @@ updateLoginHint();
 (async () => {
   const oauthResult = new URLSearchParams(window.location.search).get("github_login");
   await ensureBackendProbe();
-  await syncServerSession();
+  const sessionUser = await syncServerSession();
+  if (sessionUser) {
+    const migratedProfile = await migrateLocalProfilePrefsToServer(sessionUser);
+    if (migratedProfile) {
+      replaceProfilePrefs(sessionUser.id, migratedProfile);
+      updateLoginState();
+    } else if (vibyBackend.apiOnline && !Object.keys(getProfilePrefs(sessionUser.id)).length) {
+      try {
+        const remoteProfile = await fetchProfileFromServer();
+        if (remoteProfile) replaceProfilePrefs(sessionUser.id, remoteProfile);
+      } catch (error) {
+        console.warn("[viby] fetch profile failed", error);
+      }
+    }
+  }
+  await loadWorks();
   if (getUser()) {
     closeLogin();
     if (oauthResult === "success") {

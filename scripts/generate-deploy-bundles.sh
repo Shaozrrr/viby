@@ -7,7 +7,7 @@ mkdir -p "$B"
 python3 <<PY
 import base64, gzip, pathlib
 root = pathlib.Path("$ROOT")
-for name in ("server.js", "script.js"):
+for name in ("server.js", "script.js", "share.js"):
     raw = (root / name).read_bytes()
     path = pathlib.Path("$B") / f"{name}.gz.b64"
     path.write_text(base64.standard_b64encode(gzip.compress(raw)).decode() + "\n")

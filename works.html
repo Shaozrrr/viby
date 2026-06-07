@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>更多作品 - Viby</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20260525d" />
+    <link rel="stylesheet" href="./styles.css?v=20260607a" />
   </head>
   <body class="works-page">
     <div class="grain" aria-hidden="true"></div>
@@ -73,6 +73,26 @@
       </section>
     </main>
 
-    <script src="./works.js?v=20260525d"></script>
+    <aside class="link-guard-overlay" aria-hidden="true" aria-label="外链安全提示">
+      <div class="link-guard-shell">
+        <button class="close-button link-guard-close" type="button" data-close-link-guard aria-label="关闭">×</button>
+        <span class="section-kicker">Safety check</span>
+        <h2 id="linkGuardTitle">即将离开 Viby</h2>
+        <p class="link-guard-intro" id="linkGuardIntro">
+          你将访问第三方站点。继续前，请自行核对域名与页面真实性，不要提交密码、短信验证码、银行卡、助记词或私钥。
+        </p>
+        <div class="link-guard-chip" id="linkGuardChip"></div>
+        <div class="link-guard-reasons" id="linkGuardReasons" hidden></div>
+        <p class="link-guard-legal-note">
+          Viby 仅提供公开作品展示入口，不对外部站点的合法性、安全性、可用性、交易结果或后续损失承担保证责任。
+        </p>
+        <div class="link-guard-actions">
+          <button type="button" class="share-action-button" data-close-link-guard>取消</button>
+          <button type="button" class="share-action-button primary" data-confirm-link-guard>继续访问</button>
+        </div>
+      </div>
+    </aside>
+
+    <script src="./works.js?v=20260607a"></script>
   </body>
 </html>

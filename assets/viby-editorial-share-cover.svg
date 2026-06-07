@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="206" y1="88" x2="1382" y2="905" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8EE"/>
+      <stop offset="0.45" stop-color="#F1ECFF"/>
+      <stop offset="1" stop-color="#DCEEFF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="246" y1="164" x2="1296" y2="836" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#FFF8F0" stop-opacity="0.78"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="1010" y1="202" x2="1452" y2="580" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#181A23"/>
+      <stop offset="0.52" stop-color="#5840E7"/>
+      <stop offset="1" stop-color="#9FDFFF"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(395 183) rotate(38.06) scale(560.878 397.224)">
+      <stop stop-color="#FFDFA8" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#FFDFA8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1342 157) rotate(144.04) scale(479.26 317.692)">
+      <stop stop-color="#C8D8FF" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#C8D8FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="127" y="96" width="1354" height="811" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="28"/>
+      <feGaussianBlur stdDeviation="48"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.0862745 0 0 0 0 0.0901961 0 0 0 0 0.14902 0 0 0 0.14 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_2"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_2" result="shape"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" rx="56" fill="url(#bg)"/>
+  <rect width="1600" height="1000" rx="56" fill="url(#glowA)"/>
+  <rect width="1600" height="1000" rx="56" fill="url(#glowB)"/>
+  <g filter="url(#shadow)">
+    <rect x="223" y="164" width="1154" height="611" rx="40" fill="url(#panel)"/>
+    <rect x="270" y="212" width="632" height="515" rx="34" fill="#F7F0E7"/>
+    <rect x="270" y="212" width="632" height="515" rx="34" fill="url(#glowA)" opacity="0.62"/>
+    <rect x="270" y="212" width="632" height="515" rx="34" fill="#F5EFE7"/>
+    <path d="M334 644C420.478 549.683 526.062 498.819 650.753 491.407C739.452 486.132 823.201 502.403 902 540.221V727H270V674.493C289.98 670.351 311.313 660.185 334 644Z" fill="#E2D8CB"/>
+    <path d="M270 565.218C323.281 537.244 379.224 523.257 437.83 523.257C528.995 523.257 616.744 557.172 701.077 625L772.774 683.257L902 727H270V565.218Z" fill="#CFC3B6"/>
+    <circle cx="387" cy="344" r="74" fill="#FFFFFF" fill-opacity="0.72"/>
+    <rect x="404" y="256" width="18" height="188" rx="9" fill="#11131C"/>
+    <rect x="377" y="282" width="18" height="144" rx="9" fill="#7D63FF"/>
+    <rect x="350" y="317" width="18" height="109" rx="9" fill="#9FDFFF"/>
+    <path d="M451 433L476 461.5L523.5 399" stroke="#11131C" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="968" y="212" width="362" height="158" rx="34" fill="white" fill-opacity="0.88"/>
+    <text x="1006" y="270" fill="#6A6270" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="700" letter-spacing="6">BUILT ON VIBY</text>
+    <text x="1006" y="332" fill="#11131C" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="72" font-weight="800" letter-spacing="-4">Viby</text>
+    <text x="1008" y="432" fill="#5F5A66" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700">面向真实分享的 vibe coding 作品社区</text>
+    <text x="1008" y="473" fill="#7C7482" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="500">分享主页、分享作品、作品安全风控、社区发现与正式发布链路。</text>
+    <rect x="968" y="418" width="362" height="238" rx="34" fill="#FFFDF9"/>
+    <rect x="1006" y="454" width="132" height="44" rx="22" fill="#FFFFFF" stroke="#ECE6DE"/>
+    <text x="1034" y="484" fill="#11131C" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">发现作品</text>
+    <rect x="1156" y="454" width="132" height="44" rx="22" fill="#FFFFFF" stroke="#ECE6DE"/>
+    <text x="1184" y="484" fill="#11131C" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700">安全外链</text>
+    <rect x="1006" y="524" width="282" height="92" rx="28" fill="url(#accent)"/>
+    <text x="1044" y="565" fill="white" fill-opacity="0.72" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" letter-spacing="4">VIBY.INK</text>
+    <text x="1044" y="603" fill="white" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800">简约、高级、可正式对客</text>
+  </g>
+  <text x="224" y="869" fill="#11131C" fill-opacity="0.6" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="700" letter-spacing="4">DISCOVER MORE ON VIBY</text>
+  <text x="223" y="918" fill="#11131C" font-family="Arial, PingFang SC, Microsoft YaHei, sans-serif" font-size="44" font-weight="800" letter-spacing="-1">viby.ink</text>
+</svg>

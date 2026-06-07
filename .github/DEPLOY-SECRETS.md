@@ -15,4 +15,5 @@
 |--------|--------|
 | `VPS_DEPLOY_PATH` | `/var/www/viby` |
 | `VPS_PM2_APP` | `viby` |
+| `VPS_ENV_B64` | 不设则沿用服务器现有 `.env`；若设置，则写入 base64 编码后的完整生产 `.env` 内容后再重启 PM2。 |
 | `VIBY_PUBLIC_URL` | 不设则跳过公网自检。若设 `https://viby.ink`，部署后会 `curl` 公网 `script.js` 并检查是否含 `Array.isArray`。 |

@@ -9,7 +9,7 @@
     />
     <title>微步 Viby - Vibe Coding 作品社区</title>
     <link rel="icon" href="./logo-source.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css?v=20260525d" />
+    <link rel="stylesheet" href="./styles.css?v=20260607a" />
   </head>
   <body>
     <div class="grain" aria-hidden="true"></div>
@@ -195,6 +195,14 @@
         <h2 id="panelTitle">发布一个作品</h2>
         <p id="panelDescription">填写最必要的信息。Viby 目前只支持把用户导流到网站或 App Store，不支持上传安装包。</p>
         <form id="submitForm">
+          <input
+            name="contactPage"
+            type="text"
+            tabindex="-1"
+            autocomplete="off"
+            aria-hidden="true"
+            class="bot-trap-field"
+          />
           <label>
             <span class="field-label">作品名称 <em class="field-badge is-required">必填</em></span>
             <input name="title" type="text" placeholder="例如 灵感卡片" required />
@@ -283,6 +291,13 @@
             <span class="field-label">GitHub 链接 <em class="field-badge is-optional">选填</em></span>
             <input name="github" type="url" placeholder="https://github.com/..." />
           </label>
+          <label class="publish-safety-check">
+            <input name="publisherAgreement" type="checkbox" value="yes" required />
+            <span>我确认我有权发布这些内容，不包含诈骗、侵权、恶意导流或违法信息，并理解 Viby 可能对作品进行审核、限制、下架及合规处理。</span>
+          </label>
+          <p class="publish-safety-note">
+            Viby 仅提供作品展示与发现入口，不对第三方站点的合法性、安全性、真实性或交易结果作保证。访客请勿输入密码、短信验证码、银行卡、助记词或私钥。
+          </p>
           <button type="submit" class="publish-button" id="submitWorkButton">发布作品</button>
         </form>
       </div>
@@ -495,8 +510,53 @@
       </div>
     </aside>
 
+    <aside class="report-overlay" aria-hidden="true" aria-label="举报作品">
+      <div class="report-shell">
+        <button class="close-button report-close" type="button" data-close-report aria-label="关闭">×</button>
+        <span class="section-kicker">Safety</span>
+        <h2>举报这件作品</h2>
+        <p class="report-intro">如果你发现误导外链、侵权内容或明显不适宜展示的信息，可以快速提交给 Viby 处理。</p>
+        <p class="report-policy-note">请基于真实风险举报。重复、恶意或批量举报可能触发账号限制，不会直接导致作品自动下架。</p>
+        <div class="report-work-chip" id="reportWorkChip"></div>
+        <div class="report-reason-grid" id="reportReasonGrid" role="group" aria-label="举报原因">
+          <button type="button" class="report-reason-button" data-report-reason="疑似误导或钓鱼链接">误导链接</button>
+          <button type="button" class="report-reason-button" data-report-reason="内容疑似侵权或冒用">侵权冒用</button>
+          <button type="button" class="report-reason-button" data-report-reason="内容存在明显不适宜公开展示的信息">不适宜内容</button>
+          <button type="button" class="report-reason-button" data-report-reason="作品信息与实际体验严重不符">信息失真</button>
+        </div>
+        <label class="report-message-field">
+          <span>补充说明</span>
+          <textarea id="reportMessageInput" rows="5" maxlength="500" placeholder="选填。补充你看到的问题，便于后续处理。"></textarea>
+        </label>
+        <div class="report-actions">
+          <button type="button" class="share-action-button" data-close-report>取消</button>
+          <button type="button" class="share-action-button primary" data-submit-report>提交举报</button>
+        </div>
+      </div>
+    </aside>
+
+    <aside class="link-guard-overlay" aria-hidden="true" aria-label="外链安全提示">
+      <div class="link-guard-shell">
+        <button class="close-button link-guard-close" type="button" data-close-link-guard aria-label="关闭">×</button>
+        <span class="section-kicker">Safety check</span>
+        <h2 id="linkGuardTitle">即将离开 Viby</h2>
+        <p class="link-guard-intro" id="linkGuardIntro">
+          你将访问第三方站点。继续前，请自行核对域名与页面真实性，不要提交密码、短信验证码、银行卡、助记词或私钥。
+        </p>
+        <div class="link-guard-chip" id="linkGuardChip"></div>
+        <div class="link-guard-reasons" id="linkGuardReasons" hidden></div>
+        <p class="link-guard-legal-note">
+          Viby 仅提供公开作品展示入口，不对外部站点的合法性、安全性、可用性、交易结果或后续损失承担保证责任。
+        </p>
+        <div class="link-guard-actions">
+          <button type="button" class="share-action-button" data-close-link-guard>取消</button>
+          <button type="button" class="share-action-button primary" data-confirm-link-guard>继续访问</button>
+        </div>
+      </div>
+    </aside>
+
     <div class="toast" role="status" aria-live="polite"></div>
 
-    <script src="./script.js?v=20260525d"></script>
+    <script src="./script.js?v=20260607a"></script>
   </body>
 </html>

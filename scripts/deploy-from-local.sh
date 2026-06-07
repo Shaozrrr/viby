@@ -31,6 +31,7 @@ SSH_TARGET="${VIBY_DEPLOY_SSH:-}"
 REMOTE_PATH="${VIBY_DEPLOY_PATH:-/var/www/viby}"
 PM2_NAME="${VIBY_DEPLOY_PM2_NAME:-viby}"
 RSYNC_RSH="${VIBY_DEPLOY_SSH_CMD:-ssh}"
+REMOTE_ENV_FILE="${VIBY_DEPLOY_ENV_FILE:-}"
 
 echo "==> rsync -> ${SSH_TARGET}:${REMOTE_PATH}/"
 
@@ -38,11 +39,14 @@ FILES=(
   server.js
   script.js
   index.html
+  share.js
+  share.html
   styles.css
   works.js
   works.html
   ecosystem.config.cjs
   package.json
+  logo-source.png
 )
 
 FULL_PATHS=()
@@ -63,12 +67,19 @@ if [[ -d "$ROOT/scripts" ]]; then
   rsync -avz --checksum -e "$RSYNC_RSH" "$ROOT/scripts/" "$SSH_TARGET:$REMOTE_PATH/scripts/"
 fi
 
+if [[ -n "$REMOTE_ENV_FILE" ]]; then
+  [[ -f "$ROOT/$REMOTE_ENV_FILE" ]] || die "指定的环境文件不存在: $REMOTE_ENV_FILE"
+  echo "==> rsync .env -> ${SSH_TARGET}:${REMOTE_PATH}/.env"
+  rsync -avz --checksum -e "$RSYNC_RSH" "$ROOT/$REMOTE_ENV_FILE" "$SSH_TARGET:$REMOTE_PATH/.env"
+fi
+
 echo "==> ssh: pm2 restart ${PM2_NAME} + node --check"
 $RSYNC_RSH "$SSH_TARGET" bash -s <<REMOTE
 set -euo pipefail
 cd "${REMOTE_PATH}"
 node --check server.js
 node --check script.js
+node --check share.js
 if command -v pm2 >/dev/null 2>&1; then
   pm2 restart "${PM2_NAME}" || pm2 start ecosystem.config.cjs
 else
@@ -83,6 +94,12 @@ if [[ -n "$PUB" ]]; then
   echo "    grep -c Array.isArray -> ${n}（应为 >=1）"
   if [[ "${n}" == "0" ]]; then
     die "公网 script.js 仍像旧版本：请确认 Nginx root/proxy 是否指向 ${REMOTE_PATH}，或 CDN 是否缓存旧文件。"
+  fi
+  echo "==> 公网自检: ${PUB}/share.js"
+  m="$(curl -sS -m 25 "${PUB}/share.js" | grep -c "officialPlatformUrl" || true)"
+  echo "    grep -c officialPlatformUrl -> ${m}（应为 >=1）"
+  if [[ "${m}" == "0" ]]; then
+    die "公网 share.js 仍像旧版本：请确认分享页脚本已同步到 ${REMOTE_PATH}，或 CDN 是否缓存旧文件。"
   fi
 fi
 

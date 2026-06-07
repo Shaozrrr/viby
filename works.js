@@ -7,12 +7,20 @@ const resetFiltersButton = document.querySelector("#worksResetFilters");
 const githubOnlyInput = document.querySelector("#worksGithubOnly");
 const scopeButtons = document.querySelectorAll("[data-search-scope]");
 const categoryButtons = document.querySelectorAll("[data-category-filter]");
+const linkGuardOverlay = document.querySelector(".link-guard-overlay");
+const closeLinkGuardButtons = document.querySelectorAll("[data-close-link-guard]");
+const confirmLinkGuardButton = document.querySelector("[data-confirm-link-guard]");
+const linkGuardTitle = document.querySelector("#linkGuardTitle");
+const linkGuardIntro = document.querySelector("#linkGuardIntro");
+const linkGuardChip = document.querySelector("#linkGuardChip");
+const linkGuardReasons = document.querySelector("#linkGuardReasons");
 
 const storageKey = "viby-works";
 const authKey = "viby-user";
 const profilePrefsKey = "viby-profile-prefs";
 const oneDay = 24 * 60 * 60 * 1000;
 const pageSize = 9;
+const externalSensitiveDataWarning = "请不要在陌生页面输入密码、短信验证码、银行卡、助记词或私钥。";
 
 const safeTrim = (value) => String(value || "").trim();
 const slugify = (value) =>
@@ -84,6 +92,10 @@ const getStoredWorks = () => {
   } catch {
     return [];
   }
+};
+
+const setStoredWorks = (items) => {
+  localStorage.setItem(storageKey, JSON.stringify(Array.isArray(items) ? items : []));
 };
 
 const getUser = () => {
@@ -183,27 +195,137 @@ const analyzeExternalUrl = (value, { kind = "primary", linkType = "website" } = 
 const hasLinkRisk = (work) =>
   safeTrim(work.urlSafetyLevel) === "caution" || safeTrim(work.githubSafetyLevel) === "caution";
 
-const getAuthorForWork = (work) => {
-  const currentUser = getUser();
-  if (currentUser && work.authorId === currentUser.id) {
-    const prefs = getProfilePrefs(currentUser.id);
-    const displayName = safeTrim(
-      prefs.displayName || currentUser.name || (currentUser.email || "").split("@")[0] || work.authorName,
-    );
-    const avatarUrl = safeTrim(prefs.avatarDataUrl || currentUser.avatar) || work.authorAvatar;
-    return {
-      displayName,
-      avatarUrl,
-      handle: formatHandle((currentUser.email || displayName).split("@")[0], displayName),
-    };
-  }
+let activeLinkGuardContext = null;
 
+const getHostnameLabel = (value) => {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return safeTrim(value);
+  }
+};
+
+const buildOutboundLinkContext = (work, kind = "primary") => {
+  if (!work) return null;
+  const isGithub = kind === "github";
+  const url = safeTrim(isGithub ? work.github : work.url);
+  if (!url) return null;
+  const reasons = dedupeTextList(isGithub ? work.githubSafetyReasons : work.urlSafetyReasons);
   return {
-    displayName: safeTrim(work.authorName) || "匿名创作者",
-    avatarUrl: safeTrim(work.authorAvatar),
-    handle: formatHandle(work.authorHandle, work.authorName),
+    url,
+    hostname: getHostnameLabel(url),
+    label: isGithub ? "打开 GitHub" : getPrimaryActionLabel(work),
+    reasons,
+    shouldGuard: safeTrim(isGithub ? work.githubSafetyLevel : work.urlSafetyLevel) === "caution",
+    linkType: isGithub ? "github" : work.linkType,
   };
 };
+
+const readJsonSafely = async (response) => {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+};
+
+const checkUrlSafetyOnServer = async ({ url, kind = "primary", linkType = "website" }) => {
+  const response = await fetch("/api/safety/url-check", {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json", "X-Requested-With": "fetch" },
+    body: JSON.stringify({ url, kind, linkType }),
+  });
+  const payload = await readJsonSafely(response);
+  if (!response.ok) throw new Error(payload.error || "安全检测失败");
+  return payload;
+};
+
+const renderLinkGuard = (context) => {
+  if (!linkGuardTitle || !linkGuardIntro || !linkGuardChip || !linkGuardReasons) return;
+  if (!context) {
+    linkGuardChip.innerHTML = "";
+    linkGuardReasons.hidden = true;
+    linkGuardReasons.innerHTML = "";
+    return;
+  }
+  linkGuardTitle.textContent = context.shouldGuard ? "即将访问存在风险提示的外链" : "即将离开 Viby";
+  linkGuardIntro.textContent = context.shouldGuard
+    ? `系统已为这条链接标记风险提示。继续前，请再次核对目标域名，并牢记：${externalSensitiveDataWarning}`
+    : `你将访问第三方站点。继续前，请自行核对域名与页面真实性。${externalSensitiveDataWarning}`;
+  linkGuardChip.innerHTML = `
+    <strong>${escapeHTML(context.label)}</strong>
+    <small>${escapeHTML(context.hostname || context.url)}</small>
+  `;
+  if (context.reasons.length) {
+    linkGuardReasons.hidden = false;
+    linkGuardReasons.innerHTML = context.reasons
+      .map((reason) => `<div class="link-guard-reason">${escapeHTML(reason)}</div>`)
+      .join("");
+  } else {
+    linkGuardReasons.hidden = true;
+    linkGuardReasons.innerHTML = "";
+  }
+};
+
+const closeLinkGuard = () => {
+  linkGuardOverlay?.classList.remove("is-open");
+  linkGuardOverlay?.setAttribute("aria-hidden", "true");
+  activeLinkGuardContext = null;
+  renderLinkGuard(null);
+};
+
+const openOutboundLink = (url) => {
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const handleOutboundLink = async (workId, kind = "primary") => {
+  const work = allWorks.find((item) => item.id === workId);
+  const context = buildOutboundLinkContext(work, kind);
+  if (!context) return false;
+  try {
+    const liveSafety = await checkUrlSafetyOnServer({
+      url: context.url,
+      kind,
+      linkType: context.linkType,
+    });
+    context.reasons = dedupeTextList([...(context.reasons || []), ...(liveSafety.reasons || [])]);
+    context.shouldGuard =
+      context.shouldGuard || ["blocked", "malicious", "caution"].includes(safeTrim(liveSafety.status || "").toLowerCase());
+  } catch (error) {
+    console.warn("[viby] works page live url safety check failed", error);
+  }
+  if (context.shouldGuard) {
+    activeLinkGuardContext = context;
+    renderLinkGuard(context);
+    linkGuardOverlay?.classList.add("is-open");
+    linkGuardOverlay?.setAttribute("aria-hidden", "false");
+    return true;
+  }
+  openOutboundLink(context.url);
+  return true;
+};
+
+const getModerationTone = (work) => {
+  const status = safeTrim(work?.moderationStatus || "published");
+  if (status === "pending_review") return { label: "待审核", className: "is-pending" };
+  if (status === "blocked") return { label: "已拦截", className: "is-blocked" };
+  return { label: "", className: "" };
+};
+
+const buildModerationBadge = (work) => {
+  const tone = getModerationTone(work);
+  if (!tone.label) return "";
+  return `<span class="work-status-chip ${tone.className}">${escapeHTML(tone.label)}</span>`;
+};
+
+const getAuthorForWork = (work) => ({
+  displayName: safeTrim(work.authorName) || "匿名创作者",
+  avatarUrl: safeTrim(work.authorAvatar),
+  handle: formatHandle(work.authorHandle, work.authorName),
+});
 
 const normalizeWork = (work, index) => {
   const fallbackAuthor = buildFallbackAuthor(work, index);
@@ -241,9 +363,31 @@ const normalizeWork = (work, index) => {
   };
 };
 
-const allWorks = getStoredWorks()
+let allWorks = getStoredWorks()
   .map((work, index) => normalizeWork(work, index))
   .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+const fetchWorksFromServer = async () => {
+  const response = await fetch("/api/works", {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const payload = await readJsonSafely(response);
+    throw new Error(payload.error || "作品库加载失败");
+  }
+  const payload = await readJsonSafely(response);
+  return Array.isArray(payload.works) ? payload.works : [];
+};
+
+const syncWorksState = (items, { persist = true } = {}) => {
+  allWorks = (Array.isArray(items) ? items : [])
+    .map((work, index) => normalizeWork(work, index))
+    .filter(Boolean)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  if (persist) setStoredWorks(allWorks);
+};
 
 const normalizeSearchText = (value) =>
   safeTrim(value)
@@ -343,6 +487,7 @@ const buildWorkCard = (work, rank) => {
       <div class="work-content">
         <div class="work-topline">
           <span class="work-type-chip">${escapeHTML(getCategoryText(work.category))}</span>
+          ${buildModerationBadge(work)}
           <span class="work-date">${escapeHTML(formatRelativeDate(work.createdAt))}</span>
         </div>
         <div class="work-copy">
@@ -366,8 +511,8 @@ const buildWorkCard = (work, rank) => {
           </div>
         </div>
         <div class="work-actions">
-          <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow">${getPrimaryActionLabel(work)}</a>
-          ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow">GitHub</a>` : ""}
+          <a href="${work.url}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="primary">${getPrimaryActionLabel(work)}</a>
+          ${work.github ? `<a href="${work.github}" target="_blank" rel="noreferrer noopener nofollow" data-outbound-work="${work.id}" data-outbound-kind="github">GitHub</a>` : ""}
         </div>
       </div>
     </article>
@@ -512,4 +657,38 @@ pagination?.addEventListener("click", (event) => {
   }
 });
 
+grid?.addEventListener("click", (event) => {
+  const outboundLink = event.target.closest("[data-outbound-work]");
+  if (!outboundLink) return;
+  event.preventDefault();
+  handleOutboundLink(outboundLink.dataset.outboundWork, safeTrim(outboundLink.dataset.outboundKind) || "primary");
+});
+
+closeLinkGuardButtons.forEach((button) => button.addEventListener("click", closeLinkGuard));
+
+linkGuardOverlay?.addEventListener("click", (event) => {
+  if (event.target === linkGuardOverlay) closeLinkGuard();
+});
+
+confirmLinkGuardButton?.addEventListener("click", () => {
+  if (!activeLinkGuardContext?.url) return;
+  openOutboundLink(activeLinkGuardContext.url);
+  closeLinkGuard();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeLinkGuard();
+});
+
 renderGrid();
+
+(async () => {
+  try {
+    const remoteWorks = await fetchWorksFromServer();
+    if (!remoteWorks) return;
+    syncWorksState(remoteWorks, { persist: true });
+    renderGrid();
+  } catch (error) {
+    console.warn("[viby] works page fallback to local cache", error);
+  }
+})();
